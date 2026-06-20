@@ -12,10 +12,14 @@ const WEPAY = {
     { months: 12, label: '12 Months' },
   ],
   // WePay's cut — applied only at the payment step, never on marketing pages.
-  SERVICE_FEE_PCT: 0.03,
+  // Founding = 3% (low entry price); renewals = 7% (ongoing managed service).
+  FOUNDING_FEE_PCT: 0.03,
+  RENEWAL_FEE_PCT: 0.07,
   naira(n) { return '₦' + Number(n).toLocaleString('en-NG'); },
+  // Founding share: hardware + subscription. Renewal share: subscription only.
   quote(months, size) { return Math.ceil((this.HARDWARE_NGN + months * this.MONTHLY_NGN) / size); },
-  serviceFee(base) { return Math.ceil(base * this.SERVICE_FEE_PCT); },
-  payable(base) { return base + this.serviceFee(base); },
+  renewalQuote(months, size) { return Math.ceil((months * this.MONTHLY_NGN) / size); },
+  serviceFee(base, pct) { return Math.ceil(base * (pct == null ? this.FOUNDING_FEE_PCT : pct)); },
+  payable(base, pct) { return base + this.serviceFee(base, pct); },
   planLabel(m) { return ({ 1: '1 Month', 3: '3 Months', 6: '6 Months', 12: '12 Months' }[m] || m + ' Months'); },
 };

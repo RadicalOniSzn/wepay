@@ -5,6 +5,10 @@
 [functions]
   node_bundler = "esbuild"
 
+# Runs once a day; emails groups whose Starlink expires within 14 days.
+[functions."renewal-reminder"]
+  schedule = "@daily"
+
 [[headers]]
   for = "/admin.html"
   [headers.values]

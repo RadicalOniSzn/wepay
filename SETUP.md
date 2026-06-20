@@ -21,8 +21,12 @@ sets up the connection once the group is funded.
 | `netlify/functions/group-status.js` | Public group lookup by code |
 | `netlify/functions/get-groups.js` | Returns all groups + members to admin |
 | `netlify/functions/mark-paid.js` | Admin confirms / un-confirms a payment |
-| `netlify/functions/update-group.js` | Admin changes a group's status |
+| `netlify/functions/update-group.js` | Admin changes a group's status (sets the subscription expiry on first activation) |
 | `netlify/functions/admin-auth.js` | Admin login |
+| `netlify/functions/open-renewal.js` | Admin opens a renewal cycle and emails each member their subscription-only share |
+| `netlify/functions/mark-renewal-paid.js` | Admin confirms / un-confirms a renewal payment |
+| `netlify/functions/apply-renewal.js` | Admin applies a fully-paid renewal — extends the group's expiry |
+| `netlify/functions/renewal-reminder.js` | Scheduled daily — emails groups whose Starlink expires within 14 days |
 
 ---
 
@@ -31,16 +35,24 @@ Open `netlify/functions/config.js` **and** `pricing.js` (marked "keep in sync").
 The numbers there reflect **current Starlink Nigeria prices (verified 2026-06)**:
 
 ```
-HARDWARE_NGN    = 590000   // one-time Starlink Standard kit
-MONTHLY_NGN     = 57000    // monthly residential subscription
-GROUP_SIZES     = [10..50] // selectable per-dish group sizes
-SERVICE_FEE_PCT = 0.03     // WePay's cut — added at payment only
+HARDWARE_NGN     = 590000  // one-time Starlink Standard kit
+MONTHLY_NGN      = 57000   // monthly residential subscription
+GROUP_SIZES      = [10..50] // selectable per-dish group sizes
+FOUNDING_FEE_PCT = 0.03    // WePay's cut on founding — added at payment only
+RENEWAL_FEE_PCT  = 0.07    // WePay's cut on renewals — added at payment only
 ```
 
-`SERVICE_FEE_PCT` is **deliberately hidden** from the marketing pages: every
-page shows the base share, and the 3% is folded into the amount people actually
+The service fee is **deliberately hidden** from the marketing pages: every
+page shows the base share, and the fee is folded into the amount people actually
 transfer (join confirmation, the "How to pay" card, and the payment email). The
 admin dashboard's **Service fees** stat shows the total collected.
+
+**Two pricing models** (see `config.js`):
+- **Founding** (`quote`) = `ceil((HARDWARE + months × MONTHLY) / size)`, +3% fee.
+  This is the setup-plus-first-term payment. WePay owns and manages the equipment.
+- **Renewal** (`renewalQuote`) = `ceil((months × MONTHLY) / size)`, +7% fee.
+  Subscription only (no hardware) — members chip in to keep the connection on
+  when a term ends. Split across the **current** member count.
 
 Verify the **current** Starlink Nigeria prices and update both files so the
 per-person amounts shown to users are accurate. Note: one dish shares its bandwidth
@@ -95,6 +107,51 @@ create index groups_code_idx    on groups (code);
 
 ---
 
+## Step 1b — Renewal model (run if upgrading an existing database)
+The renewal/managed-service flow adds an expiry to each group plus two tables for
+renewal cycles and their per-member payments. If your database predates the
+renewal feature, run this once in the **SQL Editor**:
+
+```sql
+-- Track each group's managed-subscription lifecycle
+alter table groups add column if not exists activated_at        timestamptz;
+alter table groups add column if not exists expires_at          timestamptz;
+alter table groups add column if not exists renewal_reminded_at timestamptz;
+
+-- A renewal cycle = one subscription-only collection round for a group
+create table if not exists renewals (
+  id          bigint generated always as identity primary key,
+  group_id    bigint references groups(id) on delete cascade,
+  months      int    not null,
+  per_person  bigint not null,                 -- base share, before fee
+  status      text   not null default 'collecting', -- collecting | applied
+  created_at  timestamptz default now(),
+  applied_at  timestamptz
+);
+create index if not exists renewals_group_idx on renewals (group_id);
+
+-- One row per member per renewal cycle (amount includes the renewal fee)
+create table if not exists renewal_payments (
+  id             bigint generated always as identity primary key,
+  renewal_id     bigint references renewals(id) on delete cascade,
+  member_id      bigint references members(id) on delete cascade,
+  amount         bigint not null,
+  payment_status text   not null default 'pending', -- pending | confirmed
+  paid_at        timestamptz,
+  created_at     timestamptz default now(),
+  unique (renewal_id, member_id)
+);
+create index if not exists renewal_payments_renewal_idx on renewal_payments (renewal_id);
+
+-- RLS on (no policies — only the service_role key reaches these tables)
+alter table renewals         enable row level security;
+alter table renewal_payments enable row level security;
+```
+
+> Starting a **fresh** database? Run this block right after the Step 1 schema.
+
+---
+
 ## Step 2 — Gmail App Password (for emails)
 1. [myaccount.google.com](https://myaccount.google.com) → **Security** → turn on **2-Step Verification**.
 2. Search **App Passwords** → create one for "Mail" → name it `WePay`.
@@ -139,9 +196,26 @@ Re-deploy after adding variables.
 3. Everyone pays their share into the WePay bank account (using their email as the reference).
 4. In **admin**, click **Confirm paid** as payments arrive.
 5. When everyone has paid, set the group to **funded**, then **active** once the dish is installed.
+   Marking a group **active** for the first time stamps its subscription **expiry**
+   (`activated_at` + `expires_at`, based on the plan length).
 
 The champion and members can track progress any time at `/group.html?code=...`
 (names + payment status are visible to anyone with the code).
+
+### Renewals (managed service)
+WePay owns and manages each dish, so when a term nears its end members just
+re-up the subscription — no new hardware.
+
+1. The scheduled **renewal-reminder** function runs daily. ~14 days before a
+   group's `expires_at`, it opens a renewal cycle automatically and emails every
+   member + the champion their subscription-only share (split across the current
+   members, +7% renewal fee). You can also open one manually in **admin** with the
+   term dropdown → **Open renewal**.
+2. Members pay their renewal share into the same WePay account.
+3. In **admin**, confirm each renewal payment as it arrives.
+4. Once everyone has paid, click **Apply renewal** — this extends the group's
+   `expires_at` by the renewal term (stacking from the later of now / current
+   expiry) and clears the reminder flag for the next cycle.
 
 ---
 

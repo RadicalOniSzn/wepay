@@ -27,8 +27,19 @@ const PLANS = {
   12: { months: 12, label: '12 Months' },
 };
 
+// FOUNDING purchase: one Starlink kit (hardware, paid once) + N months
+// of subscription, split across the group. This sets the group up.
 function quote(months, groupSize = DEFAULT_GROUP_SIZE) {
   const total = HARDWARE_NGN + months * MONTHLY_NGN;
+  const perPerson = Math.ceil(total / groupSize);
+  return { total, perPerson, groupSize, months };
+}
+
+// RENEWAL: the dish already exists and WePay owns it, so a renewal covers
+// the subscription ONLY — no hardware. Members are buying continued access,
+// not the hardware again.
+function renewalQuote(months, groupSize = DEFAULT_GROUP_SIZE) {
+  const total = months * MONTHLY_NGN;
   const perPerson = Math.ceil(total / groupSize);
   return { total, perPerson, groupSize, months };
 }
@@ -36,12 +47,54 @@ function quote(months, groupSize = DEFAULT_GROUP_SIZE) {
 // WePay's cut. Applied ONLY at the payment step (join confirmation,
 // "how to pay" card, payment email) — never shown on the marketing
 // pages, where the base share is the affordability headline.
-const SERVICE_FEE_PCT = 0.03;
-function serviceFee(base) {
-  return Math.ceil(base * SERVICE_FEE_PCT);
+//   • Founding = 3% (keep the entry price low to win the group).
+//   • Renewal  = 7% (WePay's ongoing managed service: paying Starlink,
+//                     account management, support).
+const FOUNDING_FEE_PCT = 0.03;
+const RENEWAL_FEE_PCT = 0.07;
+function serviceFee(base, pct = FOUNDING_FEE_PCT) {
+  return Math.ceil(base * pct);
 }
-function payable(base) {
-  return base + serviceFee(base);
+function payable(base, pct = FOUNDING_FEE_PCT) {
+  return base + serviceFee(base, pct);
+}
+
+// Open a renewal cycle for a group: one `renewals` row plus a pending
+// `renewal_payments` row for every current member. The subscription-only
+// cost is split across the people actually in the group, and each member's
+// amount carries the 7% renewal fee. Returns { renewal, perPay, count }.
+// Shared by open-renewal.js (admin) and renewal-reminder.js (scheduled).
+async function createRenewalCycle(group, months) {
+  const supabase = getSupabase();
+  const { data: members } = await supabase
+    .from('members')
+    .select('id')
+    .eq('group_id', group.id);
+  const list = members || [];
+  const size = list.length || group.target_size;
+  const base = renewalQuote(months, size).perPerson;
+  const perPay = payable(base, RENEWAL_FEE_PCT);
+
+  const { data: renewal, error } = await supabase
+    .from('renewals')
+    .insert([{ group_id: group.id, months, per_person: base, status: 'collecting' }])
+    .select()
+    .single();
+  if (error || !renewal) throw error || new Error('Could not create renewal cycle.');
+
+  if (list.length) {
+    const { error: payErr } = await supabase.from('renewal_payments').insert(
+      list.map((m) => ({
+        renewal_id: renewal.id,
+        member_id: m.id,
+        amount: perPay,
+        payment_status: 'pending',
+      }))
+    );
+    if (payErr) throw payErr;
+  }
+
+  return { renewal, perPay, count: list.length };
 }
 
 // Human-friendly invite code: 6 chars, no ambiguous 0/O/1/I/L.
@@ -60,8 +113,11 @@ module.exports = {
   DEFAULT_GROUP_SIZE,
   PLANS,
   quote,
-  SERVICE_FEE_PCT,
+  renewalQuote,
+  FOUNDING_FEE_PCT,
+  RENEWAL_FEE_PCT,
   serviceFee,
   payable,
+  createRenewalCycle,
   generateCode,
 };

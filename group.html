@@ -45,6 +45,7 @@
         </div>
         <div class="progress"><div id="bar" style="width:0%"></div></div>
         <p class="muted" id="progressText"></p>
+        <p class="muted" id="renewsOn"></p>
         <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;">
           <div><span class="muted" style="font-size:13px;">Share each</span><div class="amount" id="perPerson" style="font-size:24px;"></div></div>
           <div><span class="muted" style="font-size:13px;">Paid</span><div class="amount" id="paidCount" style="font-size:24px;color:var(--cyan);"></div></div>
@@ -54,6 +55,13 @@
       <div class="card" id="bankCard" style="margin-bottom:16px;">
         <h3 style="font-size:16px;margin-bottom:8px;">How to pay</h3>
         <p class="muted" id="bankInfo"></p>
+      </div>
+
+      <div class="card hidden" id="renewalCard" style="margin-bottom:16px;border-color:#f59e0b;">
+        <h3 style="font-size:16px;margin-bottom:8px;">Renewal due — keep your connection on</h3>
+        <p class="muted" id="renewalInfo"></p>
+        <div class="progress"><div id="renewalBar" style="width:0%;background:#f59e0b;"></div></div>
+        <p class="muted" id="renewalProgress"></p>
       </div>
 
       <div class="card" style="margin-bottom:16px;">
@@ -112,25 +120,63 @@
       document.getElementById('perPerson').textContent = WEPAY.naira(g.perPerson);
       document.getElementById('paidCount').textContent = `${g.paid}/${g.joined}`;
 
-      const bankCard = document.getElementById('bankCard');
-      if (data.bank) {
-        document.getElementById('bankInfo').innerHTML =
-          `Pay <strong style="color:var(--green)">${WEPAY.naira(g.payable)}</strong> into:<br>${data.bank.name}<br><strong>${data.bank.account}</strong> · ${data.bank.accountName}<br><span style="font-size:13px">Use your email as the transfer reference.</span>`;
+      const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric' });
+
+      const renewsEl = document.getElementById('renewsOn');
+      if (g.renewsOn) {
+        renewsEl.textContent = `Starlink renews on ${fmtDate(g.renewsOn)}`;
       } else {
+        renewsEl.textContent = '';
+      }
+
+      const renewal = data.renewal;
+      const bankCard = document.getElementById('bankCard');
+      const renewalCard = document.getElementById('renewalCard');
+
+      // When a renewal is open, the renewal share takes over the "how to pay"
+      // card; the founding card is hidden (founding is already done).
+      if (renewal && renewal.open) {
         bankCard.classList.add('hidden');
+        renewalCard.classList.remove('hidden');
+        const payInto = data.bank
+          ? `<br>${data.bank.name}<br><strong>${data.bank.account}</strong> · ${data.bank.accountName}<br><span style="font-size:13px">Use your email as the transfer reference.</span>`
+          : '';
+        document.getElementById('renewalInfo').innerHTML =
+          `The dish is already set up, so renewal covers the subscription only (${renewal.planLabel}). Pay <strong style="color:#f59e0b">${WEPAY.naira(renewal.payable)}</strong> into:${payInto}`;
+        const rpct = renewal.total ? Math.round((renewal.paid / renewal.total) * 100) : 0;
+        document.getElementById('renewalBar').style.width = rpct + '%';
+        document.getElementById('renewalProgress').textContent = `${renewal.paid} of ${renewal.total} renewed`;
+      } else {
+        renewalCard.classList.add('hidden');
+        if (data.bank) {
+          bankCard.classList.remove('hidden');
+          document.getElementById('bankInfo').innerHTML =
+            `Pay <strong style="color:var(--green)">${WEPAY.naira(g.payable)}</strong> into:<br>${data.bank.name}<br><strong>${data.bank.account}</strong> · ${data.bank.accountName}<br><span style="font-size:13px">Use your email as the transfer reference.</span>`;
+        } else {
+          bankCard.classList.add('hidden');
+        }
       }
 
       document.getElementById('shareCode').textContent = g.code;
       const link = location.origin + '/join.html?code=' + g.code;
       document.getElementById('shareLink').value = link;
 
-      const rows = data.members.map((m) => `
+      const showRenewalCol = !!(renewal && renewal.open);
+      const head = document.querySelector('#dashboard table thead tr');
+      head.innerHTML = '<th>Name</th><th>Role</th><th>Payment</th>' + (showRenewalCol ? '<th>Renewal</th>' : '');
+      const rows = data.members.map((m) => {
+        const renewalCell = showRenewalCol
+          ? `<td><span class="pill ${m.renewalStatus || 'pending'}">${m.renewalStatus === 'confirmed' ? 'Renewed ✓' : 'Pending'}</span></td>`
+          : '';
+        return `
         <tr>
           <td>${m.name}</td>
           <td>${m.isChampion ? '<span class="pill forming">Champion</span>' : '<span class="muted">Member</span>'}</td>
           <td><span class="pill ${m.paymentStatus}">${m.paymentStatus === 'confirmed' ? 'Paid ✓' : 'Pending'}</span></td>
-        </tr>`).join('');
-      document.getElementById('memberRows').innerHTML = rows || '<tr><td colspan="3" class="muted">No members yet.</td></tr>';
+          ${renewalCell}
+        </tr>`;
+      }).join('');
+      document.getElementById('memberRows').innerHTML = rows || `<tr><td colspan="${showRenewalCol ? 4 : 3}" class="muted">No members yet.</td></tr>`;
     }
 
     document.getElementById('copyBtn').addEventListener('click', () => {

@@ -28,12 +28,43 @@ exports.handler = async (event) => {
 
   const { data: members } = await supabase
     .from('members')
-    .select('first_name, last_name, is_champion, payment_status, created_at')
+    .select('id, first_name, last_name, is_champion, payment_status, created_at')
     .eq('group_id', group.id)
     .order('created_at', { ascending: true });
 
   const list = members || [];
   const paid = list.filter((m) => m.payment_status === 'confirmed').length;
+
+  // Open renewal cycle (if any) — lets members see their renewal share.
+  const { data: openRenewals } = await supabase
+    .from('renewals')
+    .select('*')
+    .eq('group_id', group.id)
+    .eq('status', 'collecting')
+    .order('created_at', { ascending: false })
+    .limit(1);
+  const openRenewal = openRenewals && openRenewals.length ? openRenewals[0] : null;
+
+  let renewal = null;
+  const renewalStatusByMember = {};
+  if (openRenewal) {
+    const { data: pays } = await supabase
+      .from('renewal_payments')
+      .select('member_id, amount, payment_status')
+      .eq('renewal_id', openRenewal.id);
+    const payList = pays || [];
+    payList.forEach((p) => { renewalStatusByMember[p.member_id] = p.payment_status; });
+    renewal = {
+      open: true,
+      months: openRenewal.months,
+      planLabel: PLANS[openRenewal.months] ? PLANS[openRenewal.months].label : openRenewal.months + ' Months',
+      payable: payList.length ? payList[0].amount : null,
+      paid: payList.filter((p) => p.payment_status === 'confirmed').length,
+      total: payList.length,
+    };
+  }
+
+  const renewsOn = group.expires_at || null;
 
   const bankName = process.env.WEPAY_BANK_NAME || null;
   const bankAccount = process.env.WEPAY_ACCOUNT_NUMBER || null;
@@ -56,11 +87,14 @@ exports.handler = async (event) => {
         championName: group.champion_name,
         joined: list.length,
         paid,
+        renewsOn,
       },
+      renewal,
       members: list.map((m) => ({
         name: `${m.first_name} ${m.last_name.charAt(0)}.`,
         isChampion: m.is_champion,
         paymentStatus: m.payment_status,
+        renewalStatus: renewalStatusByMember[m.id] || null,
       })),
       bank: bankName ? { name: bankName, account: bankAccount, accountName: bankAccountName } : null,
     }),
