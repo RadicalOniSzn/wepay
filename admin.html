@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>WePay — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    #login { max-width:380px; margin:14vh auto 0; text-align:center; }
+    #login .logo { justify-content:center; margin-bottom:24px; }
+    #login input { margin:10px 0; }
+    .err { color:var(--red); font-size:14px; margin-top:10px; min-height:18px; }
+    .stats { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:26px; }
+    .stat { background:var(--bg-card); border:1px solid var(--border); border-radius:12px; padding:18px; }
+    .stat .n { font-size:24px; font-weight:800; font-family:'Sora'; }
+    .stat .l { color:var(--muted); font-size:13px; }
+    .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+    select.status { background:var(--bg); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:7px 10px; font-family:'Inter'; }
+    .gcode { font-family:'Sora'; font-weight:800; letter-spacing:2px; color:var(--cyan); }
+    @media (max-width:820px){ .stats{ grid-template-columns:repeat(2,1fr);} }
+  </style>
+</head>
+<body>
+  <div id="login">
+    <div class="logo"><span class="mark">W</span> WePay Admin</div>
+    <input id="password" type="password" placeholder="Admin password" />
+    <button class="btn btn-primary block" id="loginBtn">Log in</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+
+  <div class="wrap hidden" id="dashboard" style="padding-top:28px;">
+    <div class="top">
+      <div class="logo"><span class="mark">W</span> WePay Admin</div>
+      <div>
+        <button class="btn btn-ghost sm" id="refreshBtn">Refresh</button>
+        <button class="btn btn-ghost sm" id="logoutBtn">Log out</button>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div id="groups"></div>
+  </div>
+
+  <script src="pricing.js"></script>
+  <script>
+    const CLUSTER_STATES = ['forming','full','funded','active','cancelled'];
+    let pw = '';
+    const $ = (id) => document.getElementById(id);
+
+    async function api(path, opts = {}) {
+      const res = await fetch('/.netlify/functions/' + path, {
+        ...opts,
+        headers: { 'Content-Type':'application/json', 'x-admin-password': pw, ...(opts.headers||{}) },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Request failed');
+      return data;
+    }
+
+    $('loginBtn').addEventListener('click', login);
+    $('password').addEventListener('keydown', (e) => { if (e.key === 'Enter') login(); });
+    async function login() {
+      const candidate = $('password').value; $('loginErr').textContent = '';
+      try {
+        const res = await fetch('/.netlify/functions/admin-auth', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ password: candidate }),
+        });
+        if (!res.ok) throw new Error('Invalid password');
+        pw = candidate; sessionStorage.setItem('wepay_pw', pw);
+        $('login').classList.add('hidden'); $('dashboard').classList.remove('hidden'); load();
+      } catch (e) { $('loginErr').textContent = e.message; }
+    }
+    $('logoutBtn').addEventListener('click', () => { sessionStorage.removeItem('wepay_pw'); location.reload(); });
+    $('refreshBtn').addEventListener('click', load);
+
+    async function load() {
+      try { const { groups } = await api('get-groups'); renderStats(groups); renderGroups(groups); }
+      catch (e) { alert(e.message); }
+    }
+
+    function renderStats(groups) {
+      const members = groups.reduce((s,g)=>s+g.memberCount,0);
+      const paid = groups.reduce((s,g)=>s+g.paidCount,0);
+      const collected = groups.reduce((s,g)=>s+g.members.filter(m=>m.payment_status==='confirmed').reduce((a,m)=>a+m.amount,0),0);
+      const fees = groups.reduce((s,g)=>s+g.members.filter(m=>m.payment_status==='confirmed').reduce((a,m)=>a+(m.amount-g.per_person),0),0);
+      $('stats').innerHTML = `
+        <div class="stat"><div class="n">${groups.length}</div><div class="l">Groups</div></div>
+        <div class="stat"><div class="n">${members}</div><div class="l">Members</div></div>
+        <div class="stat"><div class="n">${paid}</div><div class="l">Payments confirmed</div></div>
+        <div class="stat"><div class="n">${WEPAY.naira(collected)}</div><div class="l">Collected</div></div>
+        <div class="stat"><div class="n" style="color:var(--green)">${WEPAY.naira(fees)}</div><div class="l">Service fees</div></div>`;
+    }
+
+    function renderGroups(groups) {
+      const box = $('groups');
+      if (!groups.length) { box.innerHTML = '<p class="muted">No groups yet.</p>'; return; }
+      box.innerHTML = '';
+      groups.forEach((g) => {
+        const rows = g.members.map((m) => `
+          <tr>
+            <td>${m.first_name} ${m.last_name}${m.is_champion?' <span class="pill forming">Champion</span>':''}<div class="muted">${m.email}</div></td>
+            <td>${m.phone || '—'}</td>
+            <td>${WEPAY.naira(m.amount)}</td>
+            <td><span class="pill ${m.payment_status}">${m.payment_status}</span></td>
+            <td>${m.payment_status==='confirmed'
+              ? `<button class="btn amber sm" data-mark="${m.id}" data-to="pending">Undo</button>`
+              : `<button class="btn green sm" data-mark="${m.id}" data-to="confirmed">Confirm paid</button>`}</td>
+          </tr>`).join('');
+        const el = document.createElement('div');
+        el.className = 'card'; el.style.marginBottom = '16px';
+        el.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+            <div>
+              <h3 style="font-size:17px;">${g.name} · <span class="gcode">${g.code}</span></h3>
+              <p class="muted">${[g.venue,g.state].filter(Boolean).join(' · ')} · ${WEPAY.planLabel(g.plan_months)} · ${g.memberCount}/${g.target_size} · ${g.paidCount} paid · share ${WEPAY.naira(g.per_person)}</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span class="pill ${g.status}">${g.status}</span>
+              <select class="status" data-group="${g.id}">${CLUSTER_STATES.map(s=>`<option value="${s}" ${s===g.status?'selected':''}>${s}</option>`).join('')}</select>
+            </div>
+          </div>
+          <table>
+            <thead><tr><th>Member</th><th>Phone</th><th>Share</th><th>Payment</th><th></th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+        box.appendChild(el);
+      });
+
+      box.querySelectorAll('[data-mark]').forEach((b) => b.addEventListener('click', async () => {
+        b.disabled = true;
+        try { await api('mark-paid', { method:'POST', body:JSON.stringify({ memberId:Number(b.dataset.mark), status:b.dataset.to }) }); load(); }
+        catch (e) { alert(e.message); b.disabled = false; }
+      }));
+      box.querySelectorAll('select.status').forEach((s) => s.addEventListener('change', async () => {
+        try { await api('update-group', { method:'POST', body:JSON.stringify({ groupId:Number(s.dataset.group), status:s.value }) }); load(); }
+        catch (e) { alert(e.message); }
+      }));
+    }
+
+    const saved = sessionStorage.getItem('wepay_pw');
+    if (saved) { pw = saved; $('login').classList.add('hidden'); $('dashboard').classList.remove('hidden'); load(); }
+  </script>
+</body>
+</html>

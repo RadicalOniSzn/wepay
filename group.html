@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WePay — Group dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav id="nav" class="scrolled">
+    <a href="index.html" class="logo"><span class="mark">W</span> WePay</a>
+    <ul class="nav-links">
+      <li><a href="start.html">Start a group</a></li>
+    </ul>
+  </nav>
+
+  <section class="wrap narrow" style="padding-top:120px;">
+    <!-- Code prompt (shown if no code in URL) -->
+    <div id="lookup">
+      <div class="section-head center">
+        <span class="section-tag">Group dashboard</span>
+        <h2>Track your group</h2>
+        <p class="lead" style="color:var(--muted);">Enter your group's invite code to see who's joined and who's paid.</p>
+      </div>
+      <div class="form-card" style="margin-top:30px;">
+        <form id="codeForm">
+          <div class="field"><label for="code">Invite code</label><input id="code" class="code-input" maxlength="6" placeholder="ABC123" required /></div>
+          <button class="btn btn-primary block" type="submit">View group</button>
+          <div class="form-msg" id="formMsg"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="hidden">
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+          <div>
+            <h2 id="gName" style="font-size:24px;"></h2>
+            <p class="muted" id="gMeta"></p>
+          </div>
+          <span class="pill" id="gStatus"></span>
+        </div>
+        <div class="progress"><div id="bar" style="width:0%"></div></div>
+        <p class="muted" id="progressText"></p>
+        <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;">
+          <div><span class="muted" style="font-size:13px;">Share each</span><div class="amount" id="perPerson" style="font-size:24px;"></div></div>
+          <div><span class="muted" style="font-size:13px;">Paid</span><div class="amount" id="paidCount" style="font-size:24px;color:var(--cyan);"></div></div>
+        </div>
+      </div>
+
+      <div class="card" id="bankCard" style="margin-bottom:16px;">
+        <h3 style="font-size:16px;margin-bottom:8px;">How to pay</h3>
+        <p class="muted" id="bankInfo"></p>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="font-size:16px;margin-bottom:6px;">Invite more people</h3>
+        <div class="code-box">
+          <div class="code" id="shareCode"></div>
+          <div class="copy-row"><input id="shareLink" readonly /><button class="btn btn-ghost sm" id="copyBtn">Copy link</button></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="font-size:16px;margin-bottom:4px;">Members</h3>
+        <table>
+          <thead><tr><th>Name</th><th>Role</th><th>Payment</th></tr></thead>
+          <tbody id="memberRows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer><div class="wrap"><p><strong style="color:var(--text);">WePay</strong> — Affordable internet, together.</p></div></footer>
+
+  <script src="pricing.js"></script>
+  <script>
+    const lookup = document.getElementById('lookup');
+    const dashboard = document.getElementById('dashboard');
+    const msg = document.getElementById('formMsg');
+
+    async function loadGroup(code) {
+      msg.className = 'form-msg';
+      try {
+        const res = await fetch('/.netlify/functions/group-status', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not load group.');
+        render(data);
+      } catch (err) {
+        lookup.classList.remove('hidden'); dashboard.classList.add('hidden');
+        msg.classList.add('error'); msg.textContent = err.message;
+      }
+    }
+
+    function render(data) {
+      const g = data.group;
+      lookup.classList.add('hidden');
+      dashboard.classList.remove('hidden');
+      document.getElementById('gName').textContent = g.name;
+      document.getElementById('gMeta').textContent =
+        [g.venue, g.state, g.planLabel].filter(Boolean).join(' · ') + ` · champion: ${g.championName}`;
+      const statusEl = document.getElementById('gStatus');
+      statusEl.textContent = g.status; statusEl.className = 'pill ' + g.status;
+      const pct = g.targetSize ? Math.round((g.joined / g.targetSize) * 100) : 0;
+      document.getElementById('bar').style.width = pct + '%';
+      document.getElementById('progressText').textContent = `${g.joined} of ${g.targetSize} joined`;
+      document.getElementById('perPerson').textContent = WEPAY.naira(g.perPerson);
+      document.getElementById('paidCount').textContent = `${g.paid}/${g.joined}`;
+
+      const bankCard = document.getElementById('bankCard');
+      if (data.bank) {
+        document.getElementById('bankInfo').innerHTML =
+          `Pay <strong style="color:var(--green)">${WEPAY.naira(g.payable)}</strong> into:<br>${data.bank.name}<br><strong>${data.bank.account}</strong> · ${data.bank.accountName}<br><span style="font-size:13px">Use your email as the transfer reference.</span>`;
+      } else {
+        bankCard.classList.add('hidden');
+      }
+
+      document.getElementById('shareCode').textContent = g.code;
+      const link = location.origin + '/join.html?code=' + g.code;
+      document.getElementById('shareLink').value = link;
+
+      const rows = data.members.map((m) => `
+        <tr>
+          <td>${m.name}</td>
+          <td>${m.isChampion ? '<span class="pill forming">Champion</span>' : '<span class="muted">Member</span>'}</td>
+          <td><span class="pill ${m.paymentStatus}">${m.paymentStatus === 'confirmed' ? 'Paid ✓' : 'Pending'}</span></td>
+        </tr>`).join('');
+      document.getElementById('memberRows').innerHTML = rows || '<tr><td colspan="3" class="muted">No members yet.</td></tr>';
+    }
+
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      const inp = document.getElementById('shareLink');
+      inp.select(); navigator.clipboard.writeText(inp.value);
+      document.getElementById('copyBtn').textContent = 'Copied!';
+    });
+
+    const codeInput = document.getElementById('code');
+    codeInput.addEventListener('input', () => { codeInput.value = codeInput.value.toUpperCase(); });
+    document.getElementById('codeForm').addEventListener('submit', (e) => {
+      e.preventDefault(); loadGroup(codeInput.value.trim());
+    });
+
+    const params = new URLSearchParams(location.search);
+    if (params.get('code')) loadGroup(params.get('code').toUpperCase().trim());
+  </script>
+</body>
+</html>

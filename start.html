@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WePay — Start a group</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav id="nav" class="scrolled">
+    <a href="index.html" class="logo"><span class="mark">W</span> WePay</a>
+    <ul class="nav-links">
+      <li><a href="join.html">Join with a code</a></li>
+    </ul>
+  </nav>
+
+  <section class="wrap narrow" style="padding-top:120px;">
+    <div class="section-head center">
+      <span class="section-tag">Start a group</span>
+      <h2>Rally your hostel or camp</h2>
+      <p class="lead" style="color:var(--muted);">Set up your group and get an invite code to share. You'll be the first member.</p>
+    </div>
+
+    <div class="form-card" style="margin-top:34px;">
+      <form id="startForm">
+        <div class="field">
+          <label for="groupName">Group name</label>
+          <input id="groupName" placeholder="e.g. Moremi Hall, Block C" required />
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="venue">School / camp / venue</label><input id="venue" placeholder="e.g. University of Lagos" /></div>
+          <div class="field"><label for="state">State</label><select id="state"><option value="">Select (optional)</option></select></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="plan">Plan</label><select id="plan" required><option value="">Select a plan</option></select></div>
+          <div class="field"><label for="groupSize">How many people will share?</label><select id="groupSize" required></select></div>
+        </div>
+
+        <div class="card" style="padding:16px;margin-bottom:16px;text-align:center;">
+          <span class="muted" style="font-size:13px;">Each person's share</span>
+          <div class="amount" id="quote">—</div>
+          <span class="muted" id="quoteSub" style="font-size:13px;"></span>
+        </div>
+
+        <p class="muted" style="font-size:13px;margin-bottom:8px;">Your details (you're the group's champion):</p>
+        <div class="grid2">
+          <div class="field"><label for="firstName">First name</label><input id="firstName" required /></div>
+          <div class="field"><label for="lastName">Last name</label><input id="lastName" required /></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="email">Email</label><input id="email" type="email" required /></div>
+          <div class="field"><label for="phone">Phone (WhatsApp)</label><input id="phone" /></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary block" id="submitBtn">Create group & get code</button>
+        <div class="form-msg" id="formMsg"></div>
+      </form>
+
+      <div id="successBox" class="hidden center">
+        <div class="badge" style="margin-bottom:10px;"><span></span> Group created!</div>
+        <h3 id="successTitle" style="margin-bottom:6px;"></h3>
+        <p class="muted">Share this invite code with your hostel-mates:</p>
+        <div class="code-box">
+          <div class="code" id="successCode"></div>
+          <div class="copy-row">
+            <input id="shareLink" readonly />
+            <button class="btn btn-ghost sm" id="copyBtn">Copy link</button>
+          </div>
+        </div>
+        <p class="muted">Each person pays <strong style="color:var(--green);" id="successAmount"></strong></p>
+        <a id="dashLink" class="btn btn-primary block" style="margin-top:16px;">Open your group dashboard</a>
+      </div>
+    </div>
+  </section>
+
+  <footer><div class="wrap"><p><strong style="color:var(--text);">WePay</strong> — Affordable internet, together.</p></div></footer>
+
+  <script src="pricing.js"></script>
+  <script>
+    const NIGERIAN_STATES = ['Lagos','FCT - Abuja','Rivers','Oyo','Kano','Enugu','Kaduna','Edo','Delta','Anambra','Ogun','Osun','Plateau','Cross River','Akwa Ibom','Imo','Abia','Benue','Borno','Sokoto'];
+    const stateSel = document.getElementById('state');
+    NIGERIAN_STATES.forEach((s) => { const o=document.createElement('option'); o.value=s; o.textContent=s; stateSel.appendChild(o); });
+
+    const planSel = document.getElementById('plan');
+    WEPAY.PLANS.forEach((p) => { const o=document.createElement('option'); o.value=p.months; o.textContent=p.label; planSel.appendChild(o); });
+
+    const sizeSel = document.getElementById('groupSize');
+    WEPAY.GROUP_SIZES.forEach((s) => { const o=document.createElement('option'); o.value=s; o.textContent=s+' people'; if(s===WEPAY.DEFAULT_GROUP_SIZE)o.selected=true; sizeSel.appendChild(o); });
+
+    const quoteEl = document.getElementById('quote');
+    const quoteSub = document.getElementById('quoteSub');
+    function updateQuote() {
+      const m = Number(planSel.value), size = Number(sizeSel.value);
+      if (!m || !size) { quoteEl.textContent='—'; quoteSub.textContent=''; return; }
+      const per = WEPAY.quote(m, size);
+      quoteEl.textContent = WEPAY.naira(per);
+      quoteSub.textContent = `${WEPAY.planLabel(m)} · ${size} people · ≈ ${WEPAY.naira(Math.ceil(per/m))}/month each`;
+    }
+    planSel.addEventListener('change', updateQuote);
+    sizeSel.addEventListener('change', updateQuote);
+    updateQuote();
+
+    const form = document.getElementById('startForm');
+    const msg = document.getElementById('formMsg');
+    const btn = document.getElementById('submitBtn');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.className='form-msg'; btn.disabled=true; btn.textContent='Creating…';
+      const payload = {
+        groupName: document.getElementById('groupName').value.trim(),
+        venue: document.getElementById('venue').value.trim(),
+        state: stateSel.value,
+        plan: planSel.value,
+        groupSize: sizeSel.value,
+        firstName: document.getElementById('firstName').value.trim(),
+        lastName: document.getElementById('lastName').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+      };
+      try {
+        const res = await fetch('/.netlify/functions/create-group', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+        form.classList.add('hidden');
+        const box = document.getElementById('successBox');
+        box.classList.remove('hidden');
+        document.getElementById('successTitle').textContent = `${data.groupName} · ${data.plan}`;
+        document.getElementById('successCode').textContent = data.code;
+        const link = data.joinUrl || (location.origin + '/join.html?code=' + data.code);
+        document.getElementById('shareLink').value = link;
+        document.getElementById('successAmount').textContent = WEPAY.naira(data.amount);
+        document.getElementById('dashLink').href = data.dashUrl || ('group.html?code=' + data.code);
+      } catch (err) {
+        msg.classList.add('error'); msg.textContent = err.message;
+      } finally {
+        btn.disabled=false; btn.textContent='Create group & get code';
+      }
+    });
+
+    document.getElementById('copyBtn').addEventListener('click', () => {
+      const inp = document.getElementById('shareLink');
+      inp.select(); navigator.clipboard.writeText(inp.value);
+      document.getElementById('copyBtn').textContent = 'Copied!';
+    });
+  </script>
+</body>
+</html>

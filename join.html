@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WePay — Join a group</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav id="nav" class="scrolled">
+    <a href="index.html" class="logo"><span class="mark">W</span> WePay</a>
+    <ul class="nav-links">
+      <li><a href="start.html">Start a group</a></li>
+    </ul>
+  </nav>
+
+  <section class="wrap narrow" style="padding-top:120px;">
+    <div class="section-head center">
+      <span class="section-tag">Join a group</span>
+      <h2>Got an invite code?</h2>
+      <p class="lead" style="color:var(--muted);">Enter your code and details to claim your spot and see your share.</p>
+    </div>
+
+    <div class="form-card" style="margin-top:34px;">
+      <form id="joinForm">
+        <div class="field">
+          <label for="code">Invite code</label>
+          <input id="code" class="code-input" maxlength="6" placeholder="ABC123" required />
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="firstName">First name</label><input id="firstName" required /></div>
+          <div class="field"><label for="lastName">Last name</label><input id="lastName" required /></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label for="email">Email</label><input id="email" type="email" required /></div>
+          <div class="field"><label for="phone">Phone (WhatsApp)</label><input id="phone" /></div>
+        </div>
+        <button type="submit" class="btn btn-primary block" id="submitBtn">Join group</button>
+        <div class="form-msg" id="formMsg"></div>
+      </form>
+
+      <div id="successBox" class="hidden center">
+        <div class="badge" style="margin-bottom:10px;"><span></span> You're in!</div>
+        <h3 id="successTitle" style="margin-bottom:6px;"></h3>
+        <p class="muted">Your share to pay:</p>
+        <div class="amount" id="successAmount"></div>
+        <div class="progress"><div id="successBar" style="width:0%"></div></div>
+        <p class="muted" id="successProgress"></p>
+        <p class="muted" style="font-size:14px;margin-top:12px;">We've emailed you the payment details. <a id="dashLink" style="color:var(--cyan);">Track your group →</a></p>
+      </div>
+    </div>
+  </section>
+
+  <footer><div class="wrap"><p><strong style="color:var(--text);">WePay</strong> — Affordable internet, together.</p></div></footer>
+
+  <script src="pricing.js"></script>
+  <script>
+    const codeInput = document.getElementById('code');
+    const params = new URLSearchParams(location.search);
+    if (params.get('code')) codeInput.value = params.get('code').toUpperCase();
+    codeInput.addEventListener('input', () => { codeInput.value = codeInput.value.toUpperCase(); });
+
+    const form = document.getElementById('joinForm');
+    const msg = document.getElementById('formMsg');
+    const btn = document.getElementById('submitBtn');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.className='form-msg'; btn.disabled=true; btn.textContent='Joining…';
+      const payload = {
+        code: codeInput.value.trim(),
+        firstName: document.getElementById('firstName').value.trim(),
+        lastName: document.getElementById('lastName').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        phone: document.getElementById('phone').value.trim(),
+      };
+      try {
+        const res = await fetch('/.netlify/functions/join-group', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+        form.classList.add('hidden');
+        const box = document.getElementById('successBox');
+        box.classList.remove('hidden');
+        document.getElementById('successTitle').textContent = `${data.groupName} · ${data.plan}`;
+        document.getElementById('successAmount').textContent = WEPAY.naira(data.amount);
+        const pct = Math.round((data.joined / data.target) * 100);
+        document.getElementById('successBar').style.width = pct + '%';
+        document.getElementById('successProgress').textContent =
+          `${data.joined} of ${data.target} joined` + (data.status === 'full' ? ' — group full! Activating soon.' : '');
+        document.getElementById('dashLink').href = 'group.html?code=' + data.code;
+      } catch (err) {
+        msg.classList.add('error'); msg.textContent = err.message;
+      } finally {
+        btn.disabled=false; btn.textContent='Join group';
+      }
+    });
+  </script>
+</body>
+</html>

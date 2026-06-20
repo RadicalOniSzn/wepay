@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WePay — Share Starlink in your hostel for a fraction of the price</title>
+  <meta name="description" content="WePay lets one student rally their hostel, camp or compound to share a single Starlink connection — everyone pays a small share for fast, reliable internet." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <nav id="nav">
+    <a href="index.html" class="logo"><span class="mark">W</span> WePay</a>
+    <ul class="nav-links">
+      <li><a href="#how" class="hide-sm">How it works</a></li>
+      <li><a href="#plans" class="hide-sm">Plans</a></li>
+      <li><a href="join.html">Join with a code</a></li>
+      <li><a href="start.html" class="btn btn-primary" style="padding:10px 18px;">Start a group</a></li>
+    </ul>
+  </nav>
+
+  <header class="hero">
+    <div class="wrap">
+      <div class="badge"><span></span> Built for hostels, camps & compounds</div>
+      <h1 class="title">Get your whole hostel on <em>fast Starlink</em> — together.</h1>
+      <p class="subtitle">One Starlink is too costly for a student alone. But split across your hostel, it's cheap for everyone. Start a group, share your invite code, and get your block online.</p>
+      <div class="hero-cta">
+        <a href="start.html" class="btn btn-primary">Start a group for your hostel</a>
+        <a href="join.html" class="btn btn-ghost">I have an invite code</a>
+      </div>
+    </div>
+  </header>
+
+  <section id="how" class="wrap">
+    <div class="section-head center">
+      <span class="section-tag">How it works</span>
+      <h2>One person rallies the room</h2>
+      <p>No more overpriced MTN or Airtel data. If you're all in one place, you're ready to share Starlink.</p>
+    </div>
+    <div class="steps">
+      <div class="card step">
+        <div class="num">1</div>
+        <h3>Start a group</h3>
+        <p>Name your hostel, block or camp, pick a plan and how many people will share. You get an invite code instantly.</p>
+      </div>
+      <div class="card step">
+        <div class="num">2</div>
+        <h3>Share your code</h3>
+        <p>Drop the code in your hostel WhatsApp group. Everyone joins with it and sees their small share to pay.</p>
+      </div>
+      <div class="card step">
+        <div class="num">3</div>
+        <h3>Everyone pays, you go live</h3>
+        <p>Each person pays their share into one account. Once the group is funded, WePay sets up the connection.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="plans" class="wrap">
+    <div class="section-head center">
+      <span class="section-tag">Plans</span>
+      <h2>Pick how long you want to share</h2>
+      <p>Prices below assume 30 people in a group. With WePay you choose your own group size when you start — fewer people means a bigger share each, more people means cheaper for all.</p>
+    </div>
+    <div class="plans" id="plansGrid"></div>
+    <p class="note">Indicative pricing based on a 30-person group sharing one dish. One dish shares its bandwidth across the group, so we cap group sizes for a good experience. Starlink prices are verified before each group activates.</p>
+  </section>
+
+  <section class="wrap center">
+    <div class="section-head center">
+      <span class="section-tag">Ready?</span>
+      <h2>Be the one who brings the internet</h2>
+      <p class="lead" style="color:var(--muted);max-width:560px;">It takes a minute to start a group. Your hostel-mates will thank you.</p>
+    </div>
+    <div class="hero-cta" style="margin-top:24px;">
+      <a href="start.html" class="btn btn-primary">Start a group</a>
+      <a href="join.html" class="btn btn-ghost">Join with a code</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <p><strong style="color:var(--text);">WePay</strong> — Affordable internet, together.</p>
+      <p style="margin-top:8px;">Breaking the data monopoly, one hostel at a time.</p>
+    </div>
+  </footer>
+
+  <script src="pricing.js"></script>
+  <script>
+    const grid = document.getElementById('plansGrid');
+    WEPAY.PLANS.forEach((p) => {
+      const per = WEPAY.quote(p.months, WEPAY.DEFAULT_GROUP_SIZE);
+      const monthly = Math.ceil(per / p.months);
+      const el = document.createElement('div');
+      el.className = 'plan' + (p.featured ? ' featured' : '');
+      el.innerHTML = `
+        ${p.featured ? '<div class="tag">Most popular</div>' : ''}
+        <h3>${p.label}</h3>
+        <div class="price">${WEPAY.naira(per)}</div>
+        <div class="per">per person (group of 30)</div>
+        <div class="month-eq">≈ ${WEPAY.naira(monthly)}/month</div>
+        <a href="start.html" class="btn btn-ghost block" style="margin-top:18px;">Start this plan</a>`;
+      grid.appendChild(el);
+    });
+    window.addEventListener('scroll', () => {
+      document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 20);
+    });
+  </script>
+</body>
+</html>

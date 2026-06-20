@@ -1,0 +1,12 @@
+# Dependencies
+node_modules
+
+# Local Netlify folder
+.netlify
+
+# Local Claude Code config (machine-specific paths)
+.claude/
+
+# Environment variables / secrets
+.env
+.env.*
