@@ -97,6 +97,37 @@ async function createRenewalCycle(group, months) {
   return { renewal, perPay, count: list.length };
 }
 
+// ──────────────────────────────────────────────────────────────
+// SUBSCRIPTION LIFECYCLE DATES
+//
+// Each active group tracks TWO dates:
+//   • starlink_renews_on — the REAL date Starlink bills WePay. WePay
+//     must have collected the renewal by then.
+//   • expires_at — the MEMBER deadline, set GRACE_BUFFER_DAYS *before*
+//     the billing date. The gap is collection runway: members are
+//     nudged to pay by expires_at, but the connection (already paid for
+//     this term) stays on until starlink_renews_on. So the buffer costs
+//     nobody — it lives inside the term the group already funded.
+// If a group reaches starlink_renews_on unpaid it is marked 'lapsed'
+// (WePay never fronts the next month by default).
+// ──────────────────────────────────────────────────────────────
+const GRACE_BUFFER_DAYS = 7;
+
+// Given a start date + term length, return the real billing date and the
+// member deadline (billing date minus the grace buffer).
+function termDates(fromDate, months) {
+  const renewsOn = new Date(fromDate);
+  renewsOn.setMonth(renewsOn.getMonth() + Number(months || 0));
+  return { renewsOn, deadline: deadlineFor(renewsOn) };
+}
+
+// The member deadline for a given Starlink billing date.
+function deadlineFor(renewsOn) {
+  const deadline = new Date(renewsOn);
+  deadline.setDate(deadline.getDate() - GRACE_BUFFER_DAYS);
+  return deadline;
+}
+
 // Human-friendly invite code: 6 chars, no ambiguous 0/O/1/I/L.
 function generateCode() {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -119,5 +150,8 @@ module.exports = {
   serviceFee,
   payable,
   createRenewalCycle,
+  GRACE_BUFFER_DAYS,
+  termDates,
+  deadlineFor,
   generateCode,
 };

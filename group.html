@@ -141,8 +141,11 @@
         const payInto = data.bank
           ? `<br>${data.bank.name}<br><strong>${data.bank.account}</strong> · ${data.bank.accountName}<br><span style="font-size:13px">Use your email as the transfer reference.</span>`
           : '';
+        const payByLine = renewal.payBy
+          ? `<br><span style="font-size:13px;">Please pay by <strong>${fmtDate(renewal.payBy)}</strong> so we renew before Starlink bills.</span>`
+          : '';
         document.getElementById('renewalInfo').innerHTML =
-          `The dish is already set up, so renewal covers the subscription only (${renewal.planLabel}). Pay <strong style="color:#f59e0b">${WEPAY.naira(renewal.payable)}</strong> into:${payInto}`;
+          `The dish is already set up, so renewal covers the subscription only (${renewal.planLabel}). Pay <strong style="color:#f59e0b">${WEPAY.naira(renewal.payable)}</strong> into:${payInto}${payByLine}`;
         const rpct = renewal.total ? Math.round((renewal.paid / renewal.total) * 100) : 0;
         document.getElementById('renewalBar').style.width = rpct + '%';
         document.getElementById('renewalProgress').textContent = `${renewal.paid} of ${renewal.total} renewed`;

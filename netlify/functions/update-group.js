@@ -1,8 +1,8 @@
-const { getSupabase } = require('./config');
+const { getSupabase, termDates, deadlineFor } = require('./config');
 
 const supabase = getSupabase();
 
-const VALID = ['forming', 'full', 'funded', 'active', 'cancelled'];
+const VALID = ['forming', 'full', 'funded', 'active', 'lapsed', 'cancelled'];
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -21,16 +21,35 @@ exports.handler = async (event) => {
     return { statusCode: 400, body: JSON.stringify({ error: 'Invalid body' }) };
   }
 
-  const { groupId, status } = body;
-  if (!groupId || !VALID.includes(status)) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'groupId and a valid status are required.' }) };
+  const { groupId, status, starlinkRenewsOn } = body;
+  if (!groupId) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'groupId is required.' }) };
+  }
+  if (status !== undefined && !VALID.includes(status)) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Invalid status.' }) };
+  }
+  if (status === undefined && starlinkRenewsOn === undefined) {
+    return { statusCode: 400, body: JSON.stringify({ error: 'Nothing to update.' }) };
   }
 
-  const update = { status };
+  const update = {};
+  if (status !== undefined) update.status = status;
+
+  // Manual correction of the real Starlink billing date. The member
+  // deadline (expires_at) is always kept the grace buffer ahead of it.
+  if (starlinkRenewsOn !== undefined) {
+    const renewsOn = new Date(starlinkRenewsOn);
+    if (isNaN(renewsOn.getTime())) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Invalid Starlink billing date.' }) };
+    }
+    update.starlink_renews_on = renewsOn.toISOString();
+    update.expires_at = deadlineFor(renewsOn).toISOString();
+  }
 
   // First time a group goes 'active' the subscription clock starts:
-  // record the activation date and when the current term expires
-  // (activation + plan_months). Don't reset it if it's already set.
+  // record the activation date, the real Starlink billing date
+  // (activation + plan_months) and the member deadline (billing - grace).
+  // Don't reset it if it's already set.
   if (status === 'active') {
     const { data: group } = await supabase
       .from('groups')
@@ -39,10 +58,10 @@ exports.handler = async (event) => {
       .single();
     if (group && !group.activated_at) {
       const now = new Date();
-      const expires = new Date(now);
-      expires.setMonth(expires.getMonth() + Number(group.plan_months || 0));
+      const { renewsOn, deadline } = termDates(now, group.plan_months);
       update.activated_at = now.toISOString();
-      update.expires_at = expires.toISOString();
+      update.starlink_renews_on = renewsOn.toISOString();
+      update.expires_at = deadline.toISOString();
     }
   }
 

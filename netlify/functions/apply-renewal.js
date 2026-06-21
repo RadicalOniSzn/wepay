@@ -1,11 +1,13 @@
-const { getSupabase } = require('./config');
+const { getSupabase, deadlineFor } = require('./config');
 
 const supabase = getSupabase();
 
 // Admin applies a renewal cycle once everyone has paid: marks it applied
-// and extends the group's expiry by the renewal term. New expiry is built
-// from the later of the current expiry or now, so paying early doesn't
-// lose time and renewing late doesn't backdate.
+// and extends the group's Starlink billing date by the renewal term. The
+// new billing date is built from the later of the current billing date or
+// now, so paying early doesn't lose time and renewing late doesn't
+// backdate. The member deadline (expires_at) is kept the grace buffer
+// ahead of it, and a lapsed group is revived back to 'active'.
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
@@ -42,19 +44,26 @@ exports.handler = async (event) => {
 
   const { data: group } = await supabase
     .from('groups')
-    .select('expires_at')
+    .select('starlink_renews_on')
     .eq('id', renewal.group_id)
     .single();
 
   const now = new Date();
-  const current = group && group.expires_at ? new Date(group.expires_at) : now;
+  const current = group && group.starlink_renews_on ? new Date(group.starlink_renews_on) : now;
   const base = current > now ? current : now;
-  const newExpiry = new Date(base);
-  newExpiry.setMonth(newExpiry.getMonth() + Number(renewal.months || 0));
+  const newRenewsOn = new Date(base);
+  newRenewsOn.setMonth(newRenewsOn.getMonth() + Number(renewal.months || 0));
+  const newDeadline = deadlineFor(newRenewsOn);
 
   const { error: gUpdErr } = await supabase
     .from('groups')
-    .update({ expires_at: newExpiry.toISOString(), renewal_reminded_at: null })
+    .update({
+      status: 'active', // revive a lapsed group that paid late
+      starlink_renews_on: newRenewsOn.toISOString(),
+      expires_at: newDeadline.toISOString(),
+      renewal_reminded_at: null,
+      lapsed_at: null,
+    })
     .eq('id', renewal.group_id);
   if (gUpdErr) {
     console.error('Apply renewal (group) error:', gUpdErr);
@@ -70,5 +79,5 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: JSON.stringify({ error: 'Group extended but could not close the cycle.' }) };
   }
 
-  return { statusCode: 200, body: JSON.stringify({ ok: true, expiresAt: newExpiry.toISOString() }) };
+  return { statusCode: 200, body: JSON.stringify({ ok: true, starlinkRenewsOn: newRenewsOn.toISOString(), expiresAt: newDeadline.toISOString() }) };
 };

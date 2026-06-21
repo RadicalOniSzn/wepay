@@ -101,6 +101,7 @@ select { appearance:none; cursor:pointer; }
 .pill.forming { background:rgba(99,102,241,0.16); color:#a5b4fc; }
 .pill.full, .pill.funded { background:rgba(34,211,238,0.14); color:var(--cyan); }
 .pill.active { background:rgba(52,211,153,0.16); color:var(--green); }
+.pill.lapsed { background:rgba(245,158,11,0.16); color:#f59e0b; }
 .pill.cancelled { background:rgba(248,113,113,0.14); color:var(--red); }
 
 /* Code display */

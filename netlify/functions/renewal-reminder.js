@@ -11,11 +11,15 @@ const transporter = nodemailer.createTransport({
 const naira = (n) => '₦' + Number(n).toLocaleString('en-NG');
 const REMINDER_WINDOW_DAYS = 14;
 
-// Scheduled daily (see netlify.toml). Finds active groups whose Starlink
-// expires within the next 14 days and that haven't been reminded for this
-// cycle yet. For each: auto-opens a renewal cycle if none is open, emails
-// every member + the champion their renewal share, then stamps
-// renewal_reminded_at so it only fires once per cycle.
+// Scheduled daily (see netlify.toml). Two passes:
+//   1. REMIND — active groups whose Starlink bills within the next 14 days
+//      and that haven't been reminded for this cycle yet: auto-open a
+//      renewal cycle if none is open, email every member + the champion
+//      their share, then stamp renewal_reminded_at (fires once per cycle).
+//   2. LAPSE — active groups whose Starlink billing date has passed without
+//      a fully-paid renewal: mark them 'lapsed' (WePay never fronts the
+//      next month by default). The 7-day grace lives BEFORE the billing
+//      date (expires_at), so a lapse only happens after the real deadline.
 exports.handler = async () => {
   const now = new Date();
   const cutoff = new Date(now.getTime() + REMINDER_WINDOW_DAYS * 24 * 60 * 60 * 1000);
@@ -24,8 +28,8 @@ exports.handler = async () => {
     .from('groups')
     .select('*')
     .eq('status', 'active')
-    .not('expires_at', 'is', null)
-    .lte('expires_at', cutoff.toISOString())
+    .not('starlink_renews_on', 'is', null)
+    .lte('starlink_renews_on', cutoff.toISOString())
     .is('renewal_reminded_at', null);
 
   if (error) {
@@ -72,9 +76,13 @@ exports.handler = async () => {
       (members || []).forEach((m) => m.email && recipients.add(m.email.toLowerCase()));
       if (group.champion_email) recipients.add(group.champion_email.toLowerCase());
 
-      const renewsOn = new Date(group.expires_at).toLocaleDateString('en-NG', {
+      const fmt = (iso) => new Date(iso).toLocaleDateString('en-NG', {
         day: 'numeric', month: 'long', year: 'numeric',
       });
+      const renewsOn = fmt(group.starlink_renews_on);
+      // Members are asked to pay by the deadline (a week before billing) so
+      // WePay has the money in hand before Starlink charges.
+      const payBy = group.expires_at ? fmt(group.expires_at) : renewsOn;
       const dashUrl = `${siteUrl}/group.html?code=${group.code}`;
 
       const html = `
@@ -90,7 +98,7 @@ exports.handler = async () => {
             <p style="margin:0 0 16px;color:#34d399;font-size:28px;font-weight:800;">${naira(perPay)}</p>
             <p style="margin:0 0 8px;color:#9aa6c4;font-size:13px;">Pay into:</p>
             <p style="margin:0;color:#fff;font-size:15px;line-height:1.8;">${bankName}<br/><strong>${bankAccount}</strong><br/>${bankAccountName}</p>
-            <p style="margin:16px 0 0;color:#9aa6c4;font-size:12px;line-height:1.6;">Use your email as the transfer reference. Keep the connection on without interruption by paying before ${renewsOn}.</p>
+            <p style="margin:16px 0 0;color:#9aa6c4;font-size:12px;line-height:1.6;">Use your email as the transfer reference. Please pay by <strong style="color:#fff;">${payBy}</strong> so we can renew before Starlink bills on ${renewsOn} — that keeps your connection on without interruption.</p>
           </div>
           <p style="color:#9aa6c4;font-size:14px;margin-top:16px;">Track your group: <a href="${dashUrl}" style="color:#22d3ee;">${dashUrl}</a></p>
           <p style="text-align:center;font-size:12px;margin-top:24px;color:#6b7596;">WePay · Affordable internet, together.</p>
@@ -115,6 +123,52 @@ exports.handler = async () => {
     }
   }
 
-  console.log(`Renewal reminder: processed ${remindedCount} group(s).`);
-  return { statusCode: 200, body: JSON.stringify({ reminded: remindedCount }) };
+  // ── Pass 2: lapse sweep ──────────────────────────────────────
+  // Active groups whose Starlink billing date has now passed. If the
+  // renewal money is already in (a fully-paid 'collecting' cycle just
+  // awaiting Apply), leave them alone — admin only needs to click Apply.
+  // Otherwise mark them 'lapsed'.
+  let lapsedCount = 0;
+  const { data: overdue, error: overdueErr } = await supabase
+    .from('groups')
+    .select('id, name')
+    .eq('status', 'active')
+    .not('starlink_renews_on', 'is', null)
+    .lte('starlink_renews_on', now.toISOString());
+
+  if (overdueErr) {
+    console.error('Lapse query error:', overdueErr);
+  } else {
+    for (const group of overdue || []) {
+      try {
+        const { data: open } = await supabase
+          .from('renewals')
+          .select('id')
+          .eq('group_id', group.id)
+          .eq('status', 'collecting')
+          .limit(1);
+
+        if (open && open.length) {
+          const { data: pays } = await supabase
+            .from('renewal_payments')
+            .select('payment_status')
+            .eq('renewal_id', open[0].id);
+          const list = pays || [];
+          const fullyPaid = list.length > 0 && list.every((p) => p.payment_status === 'confirmed');
+          if (fullyPaid) continue; // money's in — admin just needs to Apply
+        }
+
+        await supabase
+          .from('groups')
+          .update({ status: 'lapsed', lapsed_at: now.toISOString() })
+          .eq('id', group.id);
+        lapsedCount++;
+      } catch (e) {
+        console.error(`Lapse failed for group ${group.id}:`, e);
+      }
+    }
+  }
+
+  console.log(`Renewal reminder: reminded ${remindedCount}, lapsed ${lapsedCount} group(s).`);
+  return { statusCode: 200, body: JSON.stringify({ reminded: remindedCount, lapsed: lapsedCount }) };
 };

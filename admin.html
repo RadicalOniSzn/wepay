@@ -45,7 +45,7 @@
 
   <script src="pricing.js"></script>
   <script>
-    const CLUSTER_STATES = ['forming','full','funded','active','cancelled'];
+    const CLUSTER_STATES = ['forming','full','funded','active','lapsed','cancelled'];
     let pw = '';
     const $ = (id) => document.getElementById(id);
 
@@ -133,7 +133,7 @@
               </div>
               <table><thead><tr><th>Member</th><th>Share</th><th>Payment</th><th></th></tr></thead><tbody>${rrows}</tbody></table>
             </div>`;
-        } else if (g.status === 'active') {
+        } else if (g.status === 'active' || g.status === 'lapsed') {
           renewalHtml = `
             <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <span class="muted">Open a renewal cycle:</span>
@@ -142,7 +142,21 @@
             </div>`;
         }
 
-        const renewsLine = g.expires_at ? ` · renews ${fmtDate(g.expires_at)}` : '';
+        // Editable real Starlink billing date; the member deadline is kept
+        // 7 days ahead of it server-side.
+        const billingVal = g.starlink_renews_on ? new Date(g.starlink_renews_on).toISOString().slice(0,10) : '';
+        const billingEditor = (g.status === 'active' || g.status === 'lapsed')
+          ? `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+               <span class="muted" style="font-size:13px;">Starlink billing date:</span>
+               <input type="date" class="status" data-renews-date="${g.id}" value="${billingVal}" />
+               <button class="btn btn-ghost sm" data-save-renews="${g.id}">Save</button>
+             </div>`
+          : '';
+
+        const meta = [];
+        if (g.expires_at) meta.push(`pay by ${fmtDate(g.expires_at)}`);
+        if (g.starlink_renews_on) meta.push(`Starlink bills ${fmtDate(g.starlink_renews_on)}`);
+        const renewsLine = meta.length ? ` · ${meta.join(' · ')}` : '';
         const el = document.createElement('div');
         el.className = 'card'; el.style.marginBottom = '16px';
         el.innerHTML = `
@@ -160,7 +174,7 @@
             <thead><tr><th>Member</th><th>Phone</th><th>Share</th><th>Payment</th><th></th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
-          ${renewalHtml}`;
+          ${renewalHtml}${billingEditor}`;
         box.appendChild(el);
       });
 
@@ -190,6 +204,15 @@
         const months = term ? Number(term.value) : 0;
         b.disabled = true;
         try { await api('open-renewal', { method:'POST', body:JSON.stringify({ groupId:Number(id), months }) }); load(); }
+        catch (e) { alert(e.message); b.disabled = false; }
+      }));
+      box.querySelectorAll('[data-save-renews]').forEach((b) => b.addEventListener('click', async () => {
+        const id = b.dataset.saveRenews;
+        const inp = box.querySelector('[data-renews-date="' + id + '"]');
+        const val = inp ? inp.value : '';
+        if (!val) { alert('Pick a Starlink billing date first.'); return; }
+        b.disabled = true;
+        try { await api('update-group', { method:'POST', body:JSON.stringify({ groupId:Number(id), starlinkRenewsOn:val }) }); load(); }
         catch (e) { alert(e.message); b.disabled = false; }
       }));
     }

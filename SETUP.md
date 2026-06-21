@@ -152,6 +152,33 @@ alter table renewal_payments enable row level security;
 
 ---
 
+## Step 1c — Two-date model + grace/lapse (run if upgrading)
+WePay tracks **two** dates per active group:
+- `starlink_renews_on` — the **real** date Starlink bills WePay.
+- `expires_at` — the **member deadline**, kept `GRACE_BUFFER_DAYS` (default **7**)
+  *before* the billing date. The gap is collection runway: the connection (already
+  funded for the current term) stays on until `starlink_renews_on`, so the buffer
+  costs nobody. A group that reaches `starlink_renews_on` unpaid is marked
+  **`lapsed`** (WePay never fronts the next month by default).
+
+```sql
+alter table groups add column if not exists starlink_renews_on timestamptz;
+alter table groups add column if not exists lapsed_at          timestamptz;
+
+-- Migrate existing rows: the old expires_at WAS the billing date, so move it to
+-- starlink_renews_on and pull expires_at back by the 7-day grace buffer.
+update groups
+   set starlink_renews_on = expires_at,
+       expires_at         = expires_at - interval '7 days'
+ where starlink_renews_on is null
+   and expires_at is not null;
+```
+
+`GRACE_BUFFER_DAYS` lives in `netlify/functions/config.js` — change it there if you
+ever want a different buffer.
+
+---
+
 ## Step 2 — Gmail App Password (for emails)
 1. [myaccount.google.com](https://myaccount.google.com) → **Security** → turn on **2-Step Verification**.
 2. Search **App Passwords** → create one for "Mail" → name it `WePay`.
@@ -196,8 +223,10 @@ Re-deploy after adding variables.
 3. Everyone pays their share into the WePay bank account (using their email as the reference).
 4. In **admin**, click **Confirm paid** as payments arrive.
 5. When everyone has paid, set the group to **funded**, then **active** once the dish is installed.
-   Marking a group **active** for the first time stamps its subscription **expiry**
-   (`activated_at` + `expires_at`, based on the plan length).
+   Marking a group **active** for the first time starts the subscription clock:
+   `activated_at`, the real Starlink billing date `starlink_renews_on`
+   (activation + plan length), and the member deadline `expires_at`
+   (billing date − 7-day grace buffer).
 
 The champion and members can track progress any time at `/group.html?code=...`
 (names + payment status are visible to anyone with the code).
@@ -206,16 +235,27 @@ The champion and members can track progress any time at `/group.html?code=...`
 WePay owns and manages each dish, so when a term nears its end members just
 re-up the subscription — no new hardware.
 
+**Two dates, one buffer.** Members are asked to pay by `expires_at`, which sits
+7 days *before* the real Starlink billing date (`starlink_renews_on`). Those 7
+days are collection runway *inside* the term the group already paid for, so the
+grace period costs nobody. You can correct the real billing date any time in
+**admin** (the *Starlink billing date* field) — the deadline auto-follows it.
+
 1. The scheduled **renewal-reminder** function runs daily. ~14 days before a
-   group's `expires_at`, it opens a renewal cycle automatically and emails every
-   member + the champion their subscription-only share (split across the current
-   members, +7% renewal fee). You can also open one manually in **admin** with the
-   term dropdown → **Open renewal**.
+   group's `starlink_renews_on`, it opens a renewal cycle automatically and emails
+   every member + the champion their subscription-only share (split across the
+   current members, +7% renewal fee), telling them to pay by `expires_at`. You can
+   also open one manually in **admin** with the term dropdown → **Open renewal**.
 2. Members pay their renewal share into the same WePay account.
 3. In **admin**, confirm each renewal payment as it arrives.
-4. Once everyone has paid, click **Apply renewal** — this extends the group's
-   `expires_at` by the renewal term (stacking from the later of now / current
-   expiry) and clears the reminder flag for the next cycle.
+4. Once everyone has paid, click **Apply renewal** — this pushes
+   `starlink_renews_on` forward by the renewal term (stacking from the later of now
+   / current billing date), recomputes `expires_at`, clears the reminder flag, and
+   revives the group to **active** if it had lapsed.
+5. **Lapse sweep:** the same daily job marks a group **`lapsed`** once
+   `starlink_renews_on` passes without a fully-paid renewal (a paid-but-not-yet
+   *Applied* cycle is left alone). WePay never fronts the next month by default —
+   the connection drops until the group pays, then **Apply renewal** brings it back.
 
 ---
 

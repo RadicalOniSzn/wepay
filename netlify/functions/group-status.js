@@ -61,10 +61,12 @@ exports.handler = async (event) => {
       payable: payList.length ? payList[0].amount : null,
       paid: payList.filter((p) => p.payment_status === 'confirmed').length,
       total: payList.length,
+      payBy: group.expires_at || null, // member deadline (before Starlink bills)
     };
   }
 
-  const renewsOn = group.expires_at || null;
+  // The member-facing "renews on" is the real Starlink billing date.
+  const renewsOn = group.starlink_renews_on || group.expires_at || null;
 
   const bankName = process.env.WEPAY_BANK_NAME || null;
   const bankAccount = process.env.WEPAY_ACCOUNT_NUMBER || null;
