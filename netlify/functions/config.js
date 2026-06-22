@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { createClient } = require('@supabase/supabase-js');
 
 function getSupabase() {
@@ -136,6 +137,13 @@ function generateCode() {
   return code;
 }
 
+// Secret per-group token that lets the champion manage the group (e.g. remove
+// non-paying members) via a private link, without a full login. Long + random
+// so it can't be guessed: 36 hex chars.
+function generateManageToken() {
+  return crypto.randomBytes(18).toString('hex');
+}
+
 module.exports = {
   getSupabase,
   HARDWARE_NGN,
@@ -154,4 +162,5 @@ module.exports = {
   termDates,
   deadlineFor,
   generateCode,
+  generateManageToken,
 };

@@ -1,5 +1,5 @@
 const nodemailer = require('nodemailer');
-const { getSupabase, PLANS, GROUP_SIZES, quote, payable, generateCode } = require('./config');
+const { getSupabase, PLANS, GROUP_SIZES, quote, payable, generateCode, generateManageToken } = require('./config');
 
 const supabase = getSupabase();
 
@@ -50,6 +50,7 @@ exports.handler = async (event) => {
   const q = quote(months, size);
 
   // Create the group, retrying if the random code collides.
+  const manageToken = generateManageToken();
   let group = null;
   for (let attempt = 0; attempt < 5 && !group; attempt++) {
     const code = generateCode();
@@ -69,6 +70,7 @@ exports.handler = async (event) => {
           champion_email: cleanEmail,
           champion_phone: phone || null,
           status: 'forming',
+          manage_token: manageToken,
         },
       ])
       .select()
@@ -108,6 +110,7 @@ exports.handler = async (event) => {
   const siteUrl = process.env.SITE_URL || '';
   const joinUrl = `${siteUrl}/join.html?code=${group.code}`;
   const dashUrl = `${siteUrl}/group.html?code=${group.code}`;
+  const manageUrl = `${dashUrl}&manage=${manageToken}`;
   const adminEmails = (process.env.ADMIN_NOTIFY_EMAILS || 'radicaloniszn@gmail.com').split(',').map((e) => e.trim());
 
   const championHtml = `
@@ -125,6 +128,11 @@ exports.handler = async (event) => {
       </div>
       <p style="color:#9aa6c4;font-size:14px;">Join link: <a href="${joinUrl}" style="color:#22d3ee;">${joinUrl}</a></p>
       <p style="color:#9aa6c4;font-size:14px;">Track your group: <a href="${dashUrl}" style="color:#22d3ee;">${dashUrl}</a></p>
+      <div style="background:#141a2e;border:1px solid #233056;border-radius:12px;padding:16px;margin:16px 0;">
+        <p style="margin:0 0 6px;color:#fbbf24;font-size:13px;font-weight:700;">Your private manage link — keep it secret</p>
+        <p style="margin:0 0 8px;color:#9aa6c4;font-size:13px;line-height:1.6;">As the champion, this link lets you remove members who joined but never paid, so they don't hold up your group. Don't share it.</p>
+        <a href="${manageUrl}" style="color:#22d3ee;font-size:13px;word-break:break-all;">${manageUrl}</a>
+      </div>
       <p style="color:#9aa6c4;font-size:14px;margin-top:16px;">Each person's share: <strong style="color:#34d399;">${naira(group.per_person)}</strong></p>
       <p style="text-align:center;font-size:12px;margin-top:24px;color:#6b7596;">WePay · Affordable internet, together.</p>
     </div>`;
@@ -167,6 +175,7 @@ exports.handler = async (event) => {
       targetSize: group.target_size,
       joinUrl,
       dashUrl,
+      manageUrl,
     }),
   };
 };

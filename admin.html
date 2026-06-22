@@ -107,7 +107,10 @@
             <td><span class="pill ${m.payment_status}">${m.payment_status}</span></td>
             <td>${m.payment_status==='confirmed'
               ? `<button class="btn amber sm" data-mark="${m.id}" data-to="pending">Undo</button>`
-              : `<button class="btn green sm" data-mark="${m.id}" data-to="confirmed">Confirm paid</button>`}</td>
+              : `<button class="btn green sm" data-mark="${m.id}" data-to="confirmed">Confirm paid</button>`}${
+              (!m.is_champion && m.payment_status!=='confirmed')
+                ? ` <button class="btn amber sm" data-remove="${m.id}">Remove</button>`
+                : ''}</td>
           </tr>`).join('');
 
         // Renewal section: manage an open cycle, or offer to open one.
@@ -181,6 +184,12 @@
       box.querySelectorAll('[data-mark]').forEach((b) => b.addEventListener('click', async () => {
         b.disabled = true;
         try { await api('mark-paid', { method:'POST', body:JSON.stringify({ memberId:Number(b.dataset.mark), status:b.dataset.to }) }); load(); }
+        catch (e) { alert(e.message); b.disabled = false; }
+      }));
+      box.querySelectorAll('[data-remove]').forEach((b) => b.addEventListener('click', async () => {
+        if (!confirm('Remove this unpaid member? This frees up their slot and cannot be undone.')) return;
+        b.disabled = true;
+        try { await api('remove-member', { method:'POST', body:JSON.stringify({ memberId:Number(b.dataset.remove) }) }); load(); }
         catch (e) { alert(e.message); b.disabled = false; }
       }));
       box.querySelectorAll('select.status[data-group]').forEach((s) => s.addEventListener('change', async () => {

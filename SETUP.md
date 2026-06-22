@@ -27,6 +27,7 @@ sets up the connection once the group is funded.
 | `netlify/functions/mark-renewal-paid.js` | Admin confirms / un-confirms a renewal payment |
 | `netlify/functions/apply-renewal.js` | Admin applies a fully-paid renewal — extends the group's expiry |
 | `netlify/functions/renewal-reminder.js` | Scheduled daily — emails groups whose Starlink expires within 14 days |
+| `netlify/functions/remove-member.js` | Removes an unpaid, non-champion member (admin password OR the group's manage token) |
 
 ---
 
@@ -179,6 +180,27 @@ ever want a different buffer.
 
 ---
 
+## Step 1d — Remove non-paying members (run if upgrading)
+Each group gets a secret **`manage_token`**. It powers the champion's private
+manage link (`group.html?code=XXXXXX&manage=<token>`), which lets the champion —
+and the WePay admin — remove members who joined but never paid, so abandoners
+don't hold up a group by occupying slots. Only **pending** (unpaid) members can be
+removed, never the champion or anyone who has paid; removal is a hard delete.
+
+```sql
+alter table groups add column if not exists manage_token text;
+
+-- Backfill existing groups with a random token so their champions get a link too.
+update groups
+   set manage_token = replace(gen_random_uuid()::text, '-', '')
+ where manage_token is null;
+```
+
+> Starting a **fresh** database? New groups get a token automatically on creation,
+> but run this once anyway so any rows created before deploy are covered.
+
+---
+
 ## Step 2 — Gmail App Password (for emails)
 1. [myaccount.google.com](https://myaccount.google.com) → **Security** → turn on **2-Step Verification**.
 2. Search **App Passwords** → create one for "Mail" → name it `WePay`.
@@ -230,6 +252,19 @@ Re-deploy after adding variables.
 
 The champion and members can track progress any time at `/group.html?code=...`
 (names + payment status are visible to anyone with the code).
+
+### Removing members who never pay
+If someone joins but never pays and just abandons the group, they tie up a slot
+and the people who *did* pay are stuck. Both the **champion** and the **admin**
+can remove such members:
+- **Champion:** uses their private manage link (`/group.html?code=XXXXXX&manage=<token>`),
+  sent in their welcome email and on the create-group success page. A **Remove**
+  button appears next to each unpaid member.
+- **Admin:** a **Remove** button shows next to each unpaid member in `/admin.html`.
+
+Only **unpaid** members can be removed — the champion and anyone who has already
+paid are protected. Removal is permanent (hard delete); the person can re-join
+later with the invite code if a slot is free.
 
 ### Renewals (managed service)
 WePay owns and manages each dish, so when a term nears its end members just

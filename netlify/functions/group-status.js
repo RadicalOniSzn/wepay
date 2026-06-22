@@ -26,6 +26,10 @@ exports.handler = async (event) => {
     return { statusCode: 404, body: JSON.stringify({ error: 'No group found with that code.' }) };
   }
 
+  // Champion management: a matching manage token unlocks the Remove buttons and
+  // exposes member IDs + full names. Never leak the token itself back out.
+  const canManage = !!(body.manage && group.manage_token && body.manage === group.manage_token);
+
   const { data: members } = await supabase
     .from('members')
     .select('id, first_name, last_name, is_champion, payment_status, created_at')
@@ -92,8 +96,10 @@ exports.handler = async (event) => {
         renewsOn,
       },
       renewal,
+      canManage,
       members: list.map((m) => ({
-        name: `${m.first_name} ${m.last_name.charAt(0)}.`,
+        id: canManage ? m.id : undefined,
+        name: canManage ? `${m.first_name} ${m.last_name}` : `${m.first_name} ${m.last_name.charAt(0)}.`,
         isChampion: m.is_champion,
         paymentStatus: m.payment_status,
         renewalStatus: renewalStatusByMember[m.id] || null,

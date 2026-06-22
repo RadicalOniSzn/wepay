@@ -72,6 +72,11 @@
         </div>
       </div>
 
+      <div class="card hidden" id="manageNotice" style="margin-bottom:16px;border-color:var(--amber);">
+        <h3 style="font-size:16px;margin-bottom:6px;color:var(--amber);">You're managing this group</h3>
+        <p class="muted" style="font-size:14px;">This is your private champion link. You can remove members who joined but never paid, to free up their slots. Paid members and you (the champion) can't be removed. Keep this link secret.</p>
+      </div>
+
       <div class="card">
         <h3 style="font-size:16px;margin-bottom:4px;">Members</h3>
         <table>
@@ -90,11 +95,17 @@
     const dashboard = document.getElementById('dashboard');
     const msg = document.getElementById('formMsg');
 
+    // The champion's private manage link carries a secret token. When present
+    // it unlocks Remove buttons for members who joined but never paid.
+    const manageToken = new URLSearchParams(location.search).get('manage') || null;
+    let currentCode = null;
+
     async function loadGroup(code) {
+      currentCode = code;
       msg.className = 'form-msg';
       try {
         const res = await fetch('/.netlify/functions/group-status', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code }),
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code, manage: manageToken }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Could not load group.');
@@ -102,6 +113,21 @@
       } catch (err) {
         lookup.classList.remove('hidden'); dashboard.classList.add('hidden');
         msg.classList.add('error'); msg.textContent = err.message;
+      }
+    }
+
+    async function removeMember(memberId) {
+      if (!confirm('Remove this member? They joined but have not paid, so removing them frees up their slot. This cannot be undone.')) return;
+      try {
+        const res = await fetch('/.netlify/functions/remove-member', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ memberId, manageToken }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not remove member.');
+        loadGroup(currentCode);
+      } catch (err) {
+        alert(err.message);
       }
     }
 
@@ -165,11 +191,18 @@
       document.getElementById('shareLink').value = link;
 
       const showRenewalCol = !!(renewal && renewal.open);
+      const canManage = !!data.canManage;
       const head = document.querySelector('#dashboard table thead tr');
-      head.innerHTML = '<th>Name</th><th>Role</th><th>Payment</th>' + (showRenewalCol ? '<th>Renewal</th>' : '');
+      head.innerHTML = '<th>Name</th><th>Role</th><th>Payment</th>'
+        + (showRenewalCol ? '<th>Renewal</th>' : '')
+        + (canManage ? '<th></th>' : '');
       const rows = data.members.map((m) => {
         const renewalCell = showRenewalCol
           ? `<td><span class="pill ${m.renewalStatus || 'pending'}">${m.renewalStatus === 'confirmed' ? 'Renewed ✓' : 'Pending'}</span></td>`
+          : '';
+        const canRemove = canManage && !m.isChampion && m.paymentStatus !== 'confirmed';
+        const manageCell = canManage
+          ? `<td>${canRemove ? `<button class="btn amber sm" data-remove="${m.id}">Remove</button>` : ''}</td>`
           : '';
         return `
         <tr>
@@ -177,9 +210,22 @@
           <td>${m.isChampion ? '<span class="pill forming">Champion</span>' : '<span class="muted">Member</span>'}</td>
           <td><span class="pill ${m.paymentStatus}">${m.paymentStatus === 'confirmed' ? 'Paid ✓' : 'Pending'}</span></td>
           ${renewalCell}
+          ${manageCell}
         </tr>`;
       }).join('');
-      document.getElementById('memberRows').innerHTML = rows || `<tr><td colspan="${showRenewalCol ? 4 : 3}" class="muted">No members yet.</td></tr>`;
+      const cols = 3 + (showRenewalCol ? 1 : 0) + (canManage ? 1 : 0);
+      document.getElementById('memberRows').innerHTML = rows || `<tr><td colspan="${cols}" class="muted">No members yet.</td></tr>`;
+
+      const manageNotice = document.getElementById('manageNotice');
+      if (canManage) {
+        manageNotice.classList.remove('hidden');
+      } else {
+        manageNotice.classList.add('hidden');
+      }
+
+      document.querySelectorAll('[data-remove]').forEach((btn) => {
+        btn.addEventListener('click', () => removeMember(Number(btn.getAttribute('data-remove'))));
+      });
     }
 
     document.getElementById('copyBtn').addEventListener('click', () => {

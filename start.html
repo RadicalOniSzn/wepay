@@ -71,6 +71,16 @@
           </div>
         </div>
         <p class="muted">Each person pays <strong style="color:var(--green);" id="successAmount"></strong></p>
+
+        <div class="card" id="manageBox" style="margin-top:16px;text-align:left;border-color:var(--amber);">
+          <p style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:6px;">Your private manage link — keep it secret</p>
+          <p class="muted" style="font-size:13px;margin-bottom:10px;">This link is just for you. It lets you remove members who join but never pay, so they don't hold up your group. We also emailed it to you. Don't share it in the group chat — share the invite code above instead.</p>
+          <div class="copy-row">
+            <input id="manageLink" readonly />
+            <button class="btn btn-ghost sm" id="copyManageBtn">Copy</button>
+          </div>
+        </div>
+
         <a id="dashLink" class="btn btn-primary block" style="margin-top:16px;">Open your group dashboard</a>
       </div>
     </div>
@@ -134,7 +144,11 @@
         const link = data.joinUrl || (location.origin + '/join.html?code=' + data.code);
         document.getElementById('shareLink').value = link;
         document.getElementById('successAmount').textContent = WEPAY.naira(data.amount);
-        document.getElementById('dashLink').href = data.dashUrl || ('group.html?code=' + data.code);
+        const manageUrl = data.manageUrl || ((data.dashUrl || ('group.html?code=' + data.code)) + '&manage=');
+        document.getElementById('manageLink').value = manageUrl;
+        // The champion's own dashboard link carries the manage token so they
+        // land on the managed view (with Remove buttons) by default.
+        document.getElementById('dashLink').href = manageUrl;
       } catch (err) {
         msg.classList.add('error'); msg.textContent = err.message;
       } finally {
@@ -146,6 +160,12 @@
       const inp = document.getElementById('shareLink');
       inp.select(); navigator.clipboard.writeText(inp.value);
       document.getElementById('copyBtn').textContent = 'Copied!';
+    });
+
+    document.getElementById('copyManageBtn').addEventListener('click', () => {
+      const inp = document.getElementById('manageLink');
+      inp.select(); navigator.clipboard.writeText(inp.value);
+      document.getElementById('copyManageBtn').textContent = 'Copied!';
     });
   </script>
 </body>
