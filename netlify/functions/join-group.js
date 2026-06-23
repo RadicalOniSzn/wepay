@@ -105,7 +105,8 @@ exports.handler = async (event) => {
       </p>
       <div style="background:#141a2e;border:1px solid #233056;border-radius:12px;padding:20px;margin-top:16px;">
         <p style="margin:0 0 6px;color:#9aa6c4;font-size:13px;">Your share to pay</p>
-        <p style="margin:0 0 16px;color:#34d399;font-size:28px;font-weight:800;">${naira(toPay)}</p>
+        <p style="margin:0 0 4px;color:#34d399;font-size:28px;font-weight:800;">${naira(toPay)}</p>
+        <p style="margin:0 0 16px;color:#6b7596;font-size:12px;">Includes a small 3% service fee for setup &amp; management.</p>
         <p style="margin:0 0 8px;color:#9aa6c4;font-size:13px;">Pay into:</p>
         <p style="margin:0;color:#fff;font-size:15px;line-height:1.8;">${bankName}<br/><strong>${bankAccount}</strong><br/>${bankAccountName}</p>
         <p style="margin:16px 0 0;color:#9aa6c4;font-size:12px;line-height:1.6;">Use your email <strong style="color:#fff;">${cleanEmail}</strong> as the transfer reference. The group activates once everyone has paid.</p>

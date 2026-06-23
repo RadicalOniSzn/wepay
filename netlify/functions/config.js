@@ -45,9 +45,10 @@ function renewalQuote(months, groupSize = DEFAULT_GROUP_SIZE) {
   return { total, perPerson, groupSize, months };
 }
 
-// WePay's cut. Applied ONLY at the payment step (join confirmation,
-// "how to pay" card, payment email) — never shown on the marketing
-// pages, where the base share is the affordability headline.
+// WePay's cut. Folded into every per-person amount members see (marketing
+// prices, the start quote, the dashboard "share each", join/pay screens and
+// emails) so the figure shown IS exactly what they transfer; a short
+// "includes a small 3% service fee" note explains it.
 //   • Founding = 3% (keep the entry price low to win the group).
 //   • Renewal  = 7% (WePay's ongoing managed service: paying Starlink,
 //                     account management, support).

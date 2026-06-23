@@ -133,7 +133,8 @@ exports.handler = async (event) => {
         <p style="margin:0 0 8px;color:#9aa6c4;font-size:13px;line-height:1.6;">As the champion, this link lets you remove members who joined but never paid, so they don't hold up your group. Don't share it.</p>
         <a href="${manageUrl}" style="color:#22d3ee;font-size:13px;word-break:break-all;">${manageUrl}</a>
       </div>
-      <p style="color:#9aa6c4;font-size:14px;margin-top:16px;">Each person's share: <strong style="color:#34d399;">${naira(group.per_person)}</strong></p>
+      <p style="color:#9aa6c4;font-size:14px;margin-top:16px;margin-bottom:2px;">Each person pays: <strong style="color:#34d399;">${naira(payable(group.per_person))}</strong></p>
+      <p style="color:#6b7596;font-size:12px;margin:0;">Includes a small 3% service fee for setup &amp; management.</p>
       <p style="text-align:center;font-size:12px;margin-top:24px;color:#6b7596;">WePay · Affordable internet, together.</p>
     </div>`;
 
@@ -171,7 +172,7 @@ exports.handler = async (event) => {
       code: group.code,
       groupName: group.name,
       plan: PLANS[months].label,
-      amount: group.per_person,
+      amount: payable(group.per_person),
       targetSize: group.target_size,
       joinUrl,
       dashUrl,

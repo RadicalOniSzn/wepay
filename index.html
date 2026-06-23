@@ -91,7 +91,7 @@
   <script>
     const grid = document.getElementById('plansGrid');
     WEPAY.PLANS.forEach((p) => {
-      const per = WEPAY.quote(p.months, WEPAY.DEFAULT_GROUP_SIZE);
+      const per = WEPAY.payable(WEPAY.quote(p.months, WEPAY.DEFAULT_GROUP_SIZE));
       const monthly = Math.ceil(per / p.months);
       const el = document.createElement('div');
       el.className = 'plan' + (p.featured ? ' featured' : '');

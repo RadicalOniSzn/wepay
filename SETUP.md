@@ -43,10 +43,13 @@ FOUNDING_FEE_PCT = 0.03    // WePay's cut on founding — added at payment only
 RENEWAL_FEE_PCT  = 0.07    // WePay's cut on renewals — added at payment only
 ```
 
-The service fee is **deliberately hidden** from the marketing pages: every
-page shows the base share, and the fee is folded into the amount people actually
-transfer (join confirmation, the "How to pay" card, and the payment email). The
-admin dashboard's **Service fees** stat shows the total collected.
+The service fee is **folded into every share members see** — the marketing plan
+prices, the start-a-group quote, the dashboard "share each", and the join/pay
+screens and emails all show the fee-inclusive amount, so the figure shown is
+exactly what people transfer. A short *"includes a small 3% service fee for setup
+& management"* note explains it. The admin dashboard still shows each member's
+real (fee-inclusive) amount plus a separate **Service fees** stat for the total
+WePay has collected in fees.
 
 **Two pricing models** (see `config.js`):
 - **Founding** (`quote`) = `ceil((HARDWARE + months × MONTHLY) / size)`, +3% fee.

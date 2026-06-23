@@ -71,6 +71,7 @@
           </div>
         </div>
         <p class="muted">Each person pays <strong style="color:var(--green);" id="successAmount"></strong></p>
+        <p class="muted" style="font-size:12px;margin-top:4px;">Includes a small 3% service fee for setup &amp; management.</p>
 
         <div class="card" id="manageBox" style="margin-top:16px;text-align:left;border-color:var(--amber);">
           <p style="font-size:13px;font-weight:700;color:var(--amber);margin-bottom:6px;">Your private manage link — keep it secret</p>
@@ -105,7 +106,7 @@
     function updateQuote() {
       const m = Number(planSel.value), size = Number(sizeSel.value);
       if (!m || !size) { quoteEl.textContent='—'; quoteSub.textContent=''; return; }
-      const per = WEPAY.quote(m, size);
+      const per = WEPAY.payable(WEPAY.quote(m, size));
       quoteEl.textContent = WEPAY.naira(per);
       quoteSub.textContent = `${WEPAY.planLabel(m)} · ${size} people · ≈ ${WEPAY.naira(Math.ceil(per/m))}/month each`;
     }

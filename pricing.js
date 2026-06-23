@@ -11,7 +11,9 @@ const WEPAY = {
     { months: 6, label: '6 Months', featured: true },
     { months: 12, label: '12 Months' },
   ],
-  // WePay's cut — applied only at the payment step, never on marketing pages.
+  // WePay's cut, folded into every share members see (marketing prices, quote,
+  // dashboard, join/pay) so the displayed amount IS what they transfer — a
+  // short "includes a small 3% service fee" note explains it.
   // Founding = 3% (low entry price); renewals = 7% (ongoing managed service).
   FOUNDING_FEE_PCT: 0.03,
   RENEWAL_FEE_PCT: 0.07,

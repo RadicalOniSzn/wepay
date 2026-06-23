@@ -143,7 +143,7 @@
       const pct = g.targetSize ? Math.round((g.joined / g.targetSize) * 100) : 0;
       document.getElementById('bar').style.width = pct + '%';
       document.getElementById('progressText').textContent = `${g.joined} of ${g.targetSize} joined`;
-      document.getElementById('perPerson').textContent = WEPAY.naira(g.perPerson);
+      document.getElementById('perPerson').textContent = WEPAY.naira(g.payable);
       document.getElementById('paidCount').textContent = `${g.paid}/${g.joined}`;
 
       const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric' });
@@ -180,7 +180,7 @@
         if (data.bank) {
           bankCard.classList.remove('hidden');
           document.getElementById('bankInfo').innerHTML =
-            `Pay <strong style="color:var(--green)">${WEPAY.naira(g.payable)}</strong> into:<br>${data.bank.name}<br><strong>${data.bank.account}</strong> · ${data.bank.accountName}<br><span style="font-size:13px">Use your email as the transfer reference.</span>`;
+            `Pay <strong style="color:var(--green)">${WEPAY.naira(g.payable)}</strong> into:<br>${data.bank.name}<br><strong>${data.bank.account}</strong> · ${data.bank.accountName}<br><span style="font-size:13px">Use your email as the transfer reference.</span><br><span style="font-size:12px" class="muted">Includes a small 3% service fee for setup &amp; management.</span>`;
         } else {
           bankCard.classList.add('hidden');
         }
