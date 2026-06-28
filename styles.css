@@ -6,6 +6,10 @@
 }
 html { scroll-behavior: smooth; }
 body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); line-height:1.7; overflow-x:hidden; min-height:100vh; }
+/* Ambient brand glow for inner pages (landing has its own hero glow) */
+body.app-bg::before { content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:radial-gradient(ellipse 55% 40% at 50% -8%, rgba(99,102,241,0.16), transparent 70%),
+            radial-gradient(ellipse 42% 32% at 88% 8%, rgba(34,211,238,0.10), transparent 70%); }
 h1,h2,h3 { font-family:'Sora',sans-serif; line-height:1.2; }
 a { color: inherit; }
 .wrap { max-width:1080px; margin:0 auto; padding:0 22px; }
@@ -105,7 +109,10 @@ section { padding:74px 0; }
 .note { font-size:13px; color:var(--muted); margin-top:22px; text-align:center; }
 
 /* Forms */
-.form-card { background:var(--bg-card); border:1px solid var(--border); border-radius:18px; padding:32px; max-width:620px; margin:0 auto; }
+.form-card { background:var(--bg-card); border:1px solid var(--border); border-radius:18px; padding:32px; max-width:620px; margin:0 auto;
+  position:relative; overflow:hidden; }
+.form-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg,var(--indigo),var(--cyan),var(--green)); }
 .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 label { display:block; font-size:13px; color:var(--muted); margin-bottom:6px; font-weight:500; }
 .field { margin-bottom:16px; }
