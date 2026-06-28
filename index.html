@@ -15,6 +15,7 @@
     <a href="index.html" class="logo"><span class="mark">W</span> WePay</a>
     <ul class="nav-links">
       <li><a href="#how" class="hide-sm">How it works</a></li>
+      <li><a href="#why" class="hide-sm">Why share</a></li>
       <li><a href="#plans" class="hide-sm">Plans</a></li>
       <li><a href="join.html">Join with a code</a></li>
       <li><a href="start.html" class="btn btn-primary" style="padding:10px 18px;">Start a group</a></li>
@@ -30,6 +31,13 @@
         <a href="start.html" class="btn btn-primary">Start a group for your hostel</a>
         <a href="join.html" class="btn btn-ghost">I have an invite code</a>
       </div>
+      <div class="hero-proof">
+        <span><strong>1 dish</strong> shared by the whole block</span>
+        <span class="dot"></span>
+        <span><strong>up to 50</strong> people per group</span>
+        <span class="dot"></span>
+        <span>from <strong>₦3,646</strong> per person / month</span>
+      </div>
     </div>
   </header>
 
@@ -41,19 +49,52 @@
     </div>
     <div class="steps">
       <div class="card step">
-        <div class="num">1</div>
+        <div class="step-top">
+          <div class="num">1</div>
+          <svg class="step-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
         <h3>Start a group</h3>
         <p>Name your hostel, block or camp, pick a plan and how many people will share. You get an invite code instantly.</p>
       </div>
       <div class="card step">
-        <div class="num">2</div>
+        <div class="step-top">
+          <div class="num">2</div>
+          <svg class="step-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        </div>
         <h3>Share your code</h3>
         <p>Drop the code in your hostel WhatsApp group. Everyone joins with it and sees their small share to pay.</p>
       </div>
       <div class="card step">
-        <div class="num">3</div>
+        <div class="step-top">
+          <div class="num">3</div>
+          <svg class="step-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+        </div>
         <h3>Everyone pays, you go live</h3>
         <p>Each person pays their share into one account. Once the group is funded, WePay sets up, owns and manages the dish — and keeps it running. When the term ends, members chip in for the next subscription to stay online.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="why" class="wrap">
+    <div class="section-head center">
+      <span class="section-tag">Why share</span>
+      <h2>One dish. A fraction of the price.</h2>
+      <p>A solo Starlink means buying the hardware and carrying the full monthly bill yourself. Split it across your block and the same connection costs each person almost nothing.</p>
+    </div>
+    <div class="compare">
+      <div class="compare-card alone">
+        <div class="who">On your own</div>
+        <div class="big" id="aloneMonthly"></div>
+        <div class="unit">per month, just you</div>
+        <div class="detail">Plus <strong id="aloneHardware"></strong> upfront for the dish &amp; router.</div>
+      </div>
+      <div class="compare-vs">vs</div>
+      <div class="compare-card shared">
+        <div class="who">With WePay</div>
+        <div class="big" id="sharedMonthly"></div>
+        <div class="unit">per person, per month</div>
+        <div class="detail">Hardware &amp; setup split across the group — no big upfront bill each.</div>
+        <span class="save" id="saveBadge"></span>
       </div>
     </div>
   </section>
@@ -89,10 +130,23 @@
 
   <script src="pricing.js"></script>
   <script>
+    // Alone vs Together — computed live so it never drifts from pricing.js
+    const cheapestMonthly = Math.min(
+      ...WEPAY.PLANS.map((p) =>
+        Math.ceil(WEPAY.payable(WEPAY.quote(p.months, WEPAY.DEFAULT_GROUP_SIZE)) / p.months))
+    );
+    document.getElementById('aloneMonthly').textContent = WEPAY.naira(WEPAY.MONTHLY_NGN);
+    document.getElementById('aloneHardware').textContent = WEPAY.naira(WEPAY.HARDWARE_NGN);
+    document.getElementById('sharedMonthly').textContent = WEPAY.naira(cheapestMonthly);
+    const pctLess = Math.round((1 - cheapestMonthly / WEPAY.MONTHLY_NGN) * 100);
+    document.getElementById('saveBadge').textContent = `Up to ${pctLess}% less each month`;
+
     const grid = document.getElementById('plansGrid');
     WEPAY.PLANS.forEach((p) => {
       const per = WEPAY.payable(WEPAY.quote(p.months, WEPAY.DEFAULT_GROUP_SIZE));
-      const monthly = Math.ceil(per / p.months);
+      const monthEq = p.months === 1
+        ? 'Billed once'
+        : `≈ ${WEPAY.naira(Math.ceil(per / p.months))}/month`;
       const el = document.createElement('div');
       el.className = 'plan' + (p.featured ? ' featured' : '');
       el.innerHTML = `
@@ -100,7 +154,7 @@
         <h3>${p.label}</h3>
         <div class="price">${WEPAY.naira(per)}</div>
         <div class="per">per person (group of 30)</div>
-        <div class="month-eq">≈ ${WEPAY.naira(monthly)}/month</div>
+        <div class="month-eq">${monthEq}</div>
         <a href="start.html" class="btn btn-ghost block" style="margin-top:18px;">Start this plan</a>`;
       grid.appendChild(el);
     });
