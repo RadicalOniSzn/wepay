@@ -25,6 +25,14 @@ nav.scrolled { border-bottom:1px solid var(--border); }
 .nav-links { display:flex; gap:24px; align-items:center; list-style:none; }
 .nav-links a { text-decoration:none; color:var(--muted); font-size:14px; font-weight:500; transition:color .2s; }
 .nav-links a:hover { color:var(--text); }
+/* Nav CTA button: .nav-links a (0,1,1) out-specifies .btn-primary (0,1,0) and
+   would mute the button text + hijack its hover. Restore white text and give
+   it a little lift so it reads as a real button in the bar. */
+.nav-links .btn-primary, .nav-links .btn-primary:hover { color:#fff; }
+.nav-links .btn-primary { padding:10px 20px; font-size:14px; font-weight:600;
+  box-shadow:0 8px 22px -10px rgba(34,211,238,0.65); transition:transform .15s, box-shadow .2s, opacity .2s; }
+.nav-links .btn-primary:hover { transform:translateY(-1px); opacity:1;
+  box-shadow:0 12px 28px -10px rgba(34,211,238,0.9); }
 
 /* Buttons */
 .btn { display:inline-block; cursor:pointer; border:none; border-radius:10px; font-family:'Inter'; font-weight:600;
