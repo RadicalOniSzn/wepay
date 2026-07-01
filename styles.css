@@ -58,6 +58,9 @@ h1.title em { font-style:normal; background:linear-gradient(135deg,var(--cyan),v
 
 /* Sections */
 section { padding:74px 0; }
+/* When a <section> also carries .wrap, the class's padding:0 22px would wipe
+   out the vertical padding above — restore it while keeping the 22px sides. */
+section.wrap { padding-top:74px; padding-bottom:74px; }
 .section-tag { color:var(--cyan); font-weight:600; font-size:13px; letter-spacing:.12em; text-transform:uppercase; }
 .section-head h2 { font-size:clamp(26px,4vw,38px); font-weight:700; margin:10px 0 14px; }
 .section-head p { color:var(--muted); max-width:620px; }
