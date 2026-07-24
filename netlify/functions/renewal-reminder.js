@@ -87,7 +87,7 @@ exports.handler = async () => {
 
       const html = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#0b1020;padding:32px;border-radius:14px;color:#e8ecf6;">
-          <div style="text-align:center;margin-bottom:20px;font-size:22px;font-weight:800;color:#fff;">WePay</div>
+          <div style="text-align:center;margin-bottom:20px;"><img src="${process.env.SITE_URL || ''}/logo-email.png" width="52" height="52" alt="WePay" style="display:block;margin:0 auto 8px;border:0;" /><span style="font-size:20px;font-weight:800;color:#fff;">WePay</span></div>
           <h1 style="font-size:22px;color:#fff;margin:0 0 8px;">${group.name} renews on ${renewsOn}</h1>
           <p style="color:#9aa6c4;font-size:14px;line-height:1.7;">
             Your group's Starlink subscription is up for renewal soon. The dish is already set up,
