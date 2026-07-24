@@ -93,7 +93,7 @@ section.wrap { padding-top:74px; padding-bottom:74px; }
 .compare-card.shared { border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan), 0 20px 50px -28px rgba(34,211,238,0.6); }
 .compare-card .who { font-size:13px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
 .compare-card.shared .who { color:var(--cyan); }
-.compare-card .big { font-family:'Sora'; font-weight:800; font-size:clamp(30px,4.4vw,42px); line-height:1.1; margin:14px 0 4px; }
+.compare-card .big { font-family:'Sora','Inter',sans-serif; font-weight:800; font-size:clamp(30px,4.4vw,42px); line-height:1.1; margin:14px 0 4px; }
 .compare-card.alone .big { color:var(--red); }
 .compare-card.shared .big { color:var(--green); }
 .compare-card .unit { font-size:14px; color:var(--muted); }
@@ -113,7 +113,7 @@ section.wrap { padding-top:74px; padding-bottom:74px; }
 .plan .tag { position:absolute; top:-11px; left:50%; transform:translateX(-50%); background:linear-gradient(135deg,var(--indigo),var(--cyan));
   color:#fff; font-size:11px; font-weight:700; padding:4px 12px; border-radius:100px; }
 .plan h3 { font-size:17px; color:var(--muted); font-weight:600; margin-bottom:14px; }
-.plan .price { font-size:30px; font-weight:800; font-family:'Sora'; }
+.plan .price { font-size:30px; font-weight:800; font-family:'Sora','Inter',sans-serif; }
 .plan .per { font-size:13px; color:var(--muted); margin-top:4px; }
 .plan .month-eq { font-size:13px; color:var(--green); font-weight:600; margin-top:10px; }
 .note { font-size:13px; color:var(--muted); margin-top:22px; text-align:center; }
@@ -141,11 +141,11 @@ select { appearance:none; cursor:pointer; }
 /* Progress */
 .progress { height:10px; background:var(--bg); border:1px solid var(--border); border-radius:100px; overflow:hidden; margin:14px 0 8px; }
 .progress > div { height:100%; background:linear-gradient(90deg,var(--indigo),var(--cyan)); transition:width .5s; }
-.amount { font-size:30px; font-weight:800; font-family:'Sora'; color:var(--green); }
+.amount { font-size:30px; font-weight:800; font-family:'Sora','Inter',sans-serif; color:var(--green); }
 .stat-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:12px; margin-top:14px; }
 .stat-tile { background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:12px 14px; }
 .stat-tile .l { font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; font-weight:600; }
-.stat-tile .v { font-family:'Sora'; font-weight:800; font-size:22px; margin-top:3px; }
+.stat-tile .v { font-family:'Sora','Inter',sans-serif; font-weight:800; font-size:22px; margin-top:3px; }
 
 /* Pills */
 .pill { display:inline-block; font-size:12px; font-weight:700; padding:3px 11px; border-radius:100px; text-transform:uppercase; letter-spacing:.04em; }
