@@ -211,13 +211,20 @@ update groups
 
 ---
 
-## Step 3 — Deploy to Netlify (free)
-**Drag & drop:** drag the `wepay` folder onto [app.netlify.com](https://app.netlify.com).
-**Or via Git:** push to GitHub → Netlify → *Add new site → Import from Git*.
+## Step 3 — Deploy to Vercel (free)
+1. Push the repo to GitHub.
+2. [vercel.com](https://vercel.com) → **Add New → Project** → import the repo.
+3. Framework preset: **Other**. No build command, output directory: leave default.
+4. Every push to `main` auto-deploys.
+
+The backend functions live in `netlify/functions/` (source of truth) and are
+exposed on Vercel through thin wrappers in `api/` — the frontend calls
+`/api/<name>`. The daily renewal-reminder cron is declared in `vercel.json`
+(`0 8 * * *` UTC), along with the security headers.
 
 ---
 
-## Step 4 — Environment variables (Netlify → Site configuration → Environment variables)
+## Step 4 — Environment variables (Vercel → Project → Settings → Environment Variables)
 | Key | Value |
 |-----|-------|
 | `SUPABASE_URL` | From Step 1 |
@@ -236,7 +243,7 @@ Re-deploy after adding variables.
 ---
 
 ## Step 5 — Use it
-- **Public site:** `https://your-site.netlify.app/`
+- **Public site:** `https://your-site.vercel.app/`
 - **Start a group:** `/start.html`
 - **Join with a code:** `/join.html` (or `/join.html?code=XXXXXX`)
 - **Group dashboard:** `/group.html?code=XXXXXX`
@@ -306,8 +313,8 @@ the connection stays fast.
 ## Local development (optional)
 ```
 npm install
-npx netlify dev
+npx vercel dev
 ```
-Runs the static pages **and** the serverless functions together at `localhost:8888`.
+Runs the static pages **and** the serverless functions together at `localhost:3000`.
 Opening the HTML files directly (file://) shows the pages, but join/create/admin
 calls need the functions running (and the env vars set).

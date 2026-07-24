@@ -22,6 +22,11 @@
       <span class="section-tag">Start a group</span>
       <h2>Rally your hostel or camp</h2>
       <p class="lead" style="color:var(--muted);">Set up your group and get an invite code to share. You'll be the first member.</p>
+      <div class="mini-facts">
+        <span><span class="tick">✓</span> No account needed</span>
+        <span><span class="tick">✓</span> Takes about a minute</span>
+        <span><span class="tick">✓</span> You'll be the group's champion</span>
+      </div>
     </div>
 
     <div class="form-card" style="margin-top:34px;">
@@ -133,7 +138,7 @@
         phone: document.getElementById('phone').value.trim(),
       };
       try {
-        const res = await fetch('/.netlify/functions/create-group', {
+        const res = await fetch('/api/create-group', {
           method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),
         });
         const data = await res.json();

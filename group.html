@@ -45,11 +45,11 @@
           <span class="pill" id="gStatus"></span>
         </div>
         <div class="progress"><div id="bar" style="width:0%"></div></div>
-        <p class="muted" id="progressText"></p>
         <p class="muted" id="renewsOn"></p>
-        <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:14px;">
-          <div><span class="muted" style="font-size:13px;">Share each</span><div class="amount" id="perPerson" style="font-size:24px;"></div></div>
-          <div><span class="muted" style="font-size:13px;">Paid</span><div class="amount" id="paidCount" style="font-size:24px;color:var(--cyan);"></div></div>
+        <div class="stat-row">
+          <div class="stat-tile"><div class="l">Your share</div><div class="v" style="color:var(--green);" id="perPerson"></div></div>
+          <div class="stat-tile"><div class="l">Joined</div><div class="v" style="color:var(--cyan);" id="joinedStat"></div></div>
+          <div class="stat-tile"><div class="l">Paid</div><div class="v" style="color:#a5b4fc;" id="paidCount"></div></div>
         </div>
       </div>
 
@@ -105,7 +105,7 @@
       currentCode = code;
       msg.className = 'form-msg';
       try {
-        const res = await fetch('/.netlify/functions/group-status', {
+        const res = await fetch('/api/group-status', {
           method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ code, manage: manageToken }),
         });
         const data = await res.json();
@@ -120,7 +120,7 @@
     async function removeMember(memberId) {
       if (!confirm('Remove this member? They joined but have not paid, so removing them frees up their slot. This cannot be undone.')) return;
       try {
-        const res = await fetch('/.netlify/functions/remove-member', {
+        const res = await fetch('/api/remove-member', {
           method:'POST', headers:{'Content-Type':'application/json'},
           body:JSON.stringify({ memberId, manageToken }),
         });
@@ -143,8 +143,8 @@
       statusEl.textContent = g.status; statusEl.className = 'pill ' + g.status;
       const pct = g.targetSize ? Math.round((g.joined / g.targetSize) * 100) : 0;
       document.getElementById('bar').style.width = pct + '%';
-      document.getElementById('progressText').textContent = `${g.joined} of ${g.targetSize} joined`;
       document.getElementById('perPerson').textContent = WEPAY.naira(g.payable);
+      document.getElementById('joinedStat').textContent = `${g.joined} of ${g.targetSize}`;
       document.getElementById('paidCount').textContent = `${g.paid}/${g.joined}`;
 
       const fmtDate = (iso) => new Date(iso).toLocaleDateString('en-NG', { day:'numeric', month:'long', year:'numeric' });

@@ -22,6 +22,11 @@
       <span class="section-tag">Join a group</span>
       <h2>Got an invite code?</h2>
       <p class="lead" style="color:var(--muted);">Enter your code and details to claim your spot and see your share.</p>
+      <div class="mini-facts">
+        <span><span class="tick">✓</span> See your share before you pay</span>
+        <span><span class="tick">✓</span> One group, one account</span>
+        <span><span class="tick">✓</span> Takes a minute</span>
+      </div>
     </div>
 
     <div class="form-card" style="margin-top:34px;">
@@ -78,7 +83,7 @@
         phone: document.getElementById('phone').value.trim(),
       };
       try {
-        const res = await fetch('/.netlify/functions/join-group', {
+        const res = await fetch('/api/join-group', {
           method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload),
         });
         const data = await res.json();

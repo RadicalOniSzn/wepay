@@ -53,7 +53,7 @@
     const $ = (id) => document.getElementById(id);
 
     async function api(path, opts = {}) {
-      const res = await fetch('/.netlify/functions/' + path, {
+      const res = await fetch('/api/' + path, {
         ...opts,
         headers: { 'Content-Type':'application/json', 'x-admin-password': pw, ...(opts.headers||{}) },
       });
@@ -67,7 +67,7 @@
     async function login() {
       const candidate = $('password').value; $('loginErr').textContent = '';
       try {
-        const res = await fetch('/.netlify/functions/admin-auth', {
+        const res = await fetch('/api/admin-auth', {
           method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ password: candidate }),
         });
         if (!res.ok) throw new Error('Invalid password');
